@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Globe } from 'lucide-react';
 import { sound } from '../app/audio';
 
 interface MainMenuProps {
   onStartGame: () => void;
+  lang: 'ru' | 'en';
+  onToggleLang: () => void;
 }
 
-export default function MainMenu({ onStartGame }: MainMenuProps) {
+export default function MainMenu({ onStartGame, lang, onToggleLang }: MainMenuProps) {
   const [muted, setMuted] = useState(sound.isMuted);
 
   const toggleSound = () => {
@@ -24,6 +26,11 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
 
   const handleAction = () => {
     sound.playClick();
+  };
+
+  const handleLang = () => {
+    sound.playClick();
+    onToggleLang();
   };
 
   return (
@@ -104,8 +111,30 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
         position: 'absolute',
         top: '16px',
         right: '24px',
+        display: 'flex',
+        gap: '10px',
         zIndex: 10
       }}>
+        <button
+          onClick={handleLang}
+          style={{
+            background: '#1a080a',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '0px',
+            color: '#ffffff',
+            padding: '7px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            fontWeight: 800,
+            cursor: 'pointer'
+          }}
+        >
+          <Globe size={16} />
+          <span>{lang.toUpperCase()}</span>
+        </button>
+
         <button
           onClick={toggleSound}
           style={{
@@ -141,7 +170,7 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
         }}>
           <img
             src="/logo.png"
-            alt="Iron Man Unleashed"
+            alt="Iron Man"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
@@ -158,9 +187,15 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
           flexDirection: 'column',
           gap: '12px'
         }}>
-          <button className="menu-btn" onClick={handleStart}>НАЧАТЬ</button>
-          <button className="menu-btn" onClick={handleAction}>ХРАНИЛИЩЕ</button>
-          <button className="menu-btn" onClick={handleAction}>ЛИДЕРЫ</button>
+          <button className="menu-btn" onClick={handleStart}>
+            {lang === 'ru' ? 'ИГРАТЬ' : 'PLAY'}
+          </button>
+          <button className="menu-btn" onClick={handleAction}>
+            {lang === 'ru' ? 'СКЛАД' : 'STORAGE'}
+          </button>
+          <button className="menu-btn" onClick={handleAction}>
+            {lang === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS'}
+          </button>
         </div>
       </div>
 
@@ -173,7 +208,7 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
         letterSpacing: '2px',
         fontFamily: 'monospace'
       }}>
-        ALPHA v0.1.0
+        ALPHA v0.2.0
       </div>
     </div>
   );
