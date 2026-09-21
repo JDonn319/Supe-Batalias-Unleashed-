@@ -24,7 +24,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     playerPos: [0, 0] as [number, number],
   });
 
-  const cameraAnglesRef = useRef({ yaw: 0, pitch: 0.15 });
+  const cameraAnglesRef = useRef({ yaw: 0, pitch: 0.1 });
   const touchRightIdRef = useRef<number | null>(null);
   const lastTouchRef = useRef({ x: 0, y: 0 });
 
@@ -35,8 +35,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x38bdf8);
-    scene.fog = new THREE.FogExp2(0xb0c4de, 0.012);
+    scene.background = new THREE.Color(0x60a5fa);
+    scene.fog = new THREE.FogExp2(0x93c5fd, 0.012);
 
     const camera = new THREE.PerspectiveCamera(
       55,
@@ -49,19 +49,19 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.15;
     mountRef.current.appendChild(renderer.domElement);
 
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x334155, 0.85);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.9);
     scene.add(hemiLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff7ed, 1.8);
-    sunLight.position.set(60, 100, 40);
+    const sunLight = new THREE.DirectionalLight(0xffedd5, 1.9);
+    sunLight.position.set(50, 90, 40);
     scene.add(sunLight);
 
-    const skyGeo = new THREE.SphereGeometry(400, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(450, 32, 16);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x93c5fd,
+      color: 0x60a5fa,
       side: THREE.BackSide
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
@@ -72,15 +72,15 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       canvas.width = 512;
       canvas.height = 512;
       const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#475569';
+      ctx.fillStyle = '#334155';
       ctx.fillRect(0, 0, 512, 512);
 
-      for (let i = 0; i < 6000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+      for (let i = 0; i < 7000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.1)';
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
       }
 
-      ctx.strokeStyle = 'rgba(15,23,42,0.3)';
+      ctx.strokeStyle = 'rgba(15,23,42,0.4)';
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, 512, 512);
 
@@ -92,7 +92,16 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     };
 
     const textureLoader = new THREE.TextureLoader();
-    let floorTexture = createProceduralTexture();
+    const floorTexture = createProceduralTexture();
+
+    const floorGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
+    floorGeo.rotateX(-Math.PI / 2);
+
+    const floorMat = new THREE.MeshStandardMaterial({
+      map: floorTexture,
+      roughness: 0.82,
+      metalness: 0.12
+    });
 
     textureLoader.load(
       '/textures/concrete.jpg',
@@ -106,15 +115,6 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       undefined,
       () => {}
     );
-
-    const floorGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
-    floorGeo.rotateX(-Math.PI / 2);
-
-    const floorMat = new THREE.MeshStandardMaterial({
-      map: floorTexture,
-      roughness: 0.8,
-      metalness: 0.15
-    });
 
     const chunks = new Map<string, THREE.Mesh>();
 
@@ -153,24 +153,27 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     const visualModelGroup = new THREE.Group();
     playerGroup.add(visualModelGroup);
 
+    const suitPivot = new THREE.Group();
+    visualModelGroup.add(suitPivot);
+
     let mixer: THREE.AnimationMixer | null = null;
     let walkAction: THREE.AnimationAction | null = null;
 
-    const fallbackGeo = new THREE.CapsuleGeometry(0.45, 1.1, 8, 16);
+    const fallbackGeo = new THREE.CapsuleGeometry(0.35, 1.1, 8, 16);
     const fallbackMat = new THREE.MeshStandardMaterial({
       color: 0x991b1b,
       metalness: 0.85,
       roughness: 0.25
     });
     const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-    fallbackMesh.position.y = 1.0;
-    visualModelGroup.add(fallbackMesh);
+    fallbackMesh.position.y = 0.9;
+    suitPivot.add(fallbackMesh);
 
-    const reactorGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const reactorGeo = new THREE.SphereGeometry(0.09, 16, 16);
     const reactorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
     const reactorMesh = new THREE.Mesh(reactorGeo, reactorMat);
-    reactorMesh.position.set(0, 1.25, 0.42);
-    visualModelGroup.add(reactorMesh);
+    reactorMesh.position.set(0, 1.1, 0.35);
+    suitPivot.add(reactorMesh);
 
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
@@ -185,16 +188,30 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     setTimeout(() => {
       setIsAssetsLoading(false);
-    }, 2500);
+    }, 2000);
 
     gltfLoader.load(
       '/models/suits/mark3.glb',
       (suitGltf) => {
-        visualModelGroup.remove(fallbackMesh);
-        visualModelGroup.remove(reactorMesh);
+        suitPivot.remove(fallbackMesh);
+        suitPivot.remove(reactorMesh);
+
         const suitModel = suitGltf.scene;
-        suitModel.scale.set(1.1, 1.1, 1.1);
-        visualModelGroup.add(suitModel);
+
+        const box = new THREE.Box3().setFromObject(suitModel);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        const targetHeight = 1.8;
+        const scaleFactor = targetHeight / (size.y || 1);
+        suitModel.scale.setScalar(scaleFactor);
+
+        suitModel.position.x = -center.x * scaleFactor;
+        suitModel.position.y = -box.min.y * scaleFactor;
+        suitModel.position.z = -center.z * scaleFactor;
+
+        suitPivot.rotation.y = Math.PI;
+        suitPivot.add(suitModel);
 
         mixer = new THREE.AnimationMixer(suitModel);
 
@@ -205,8 +222,25 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           fbxLoader.load(
             '/models/animations/walk.fbx',
             (animFbx) => {
-              if (animFbx.animations.length > 0 && mixer) {
+              if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
                 const clip = animFbx.animations[0];
+
+                const boneNames = new Map<string, string>();
+                suitModel.traverse((child) => {
+                  if (child instanceof THREE.Bone) {
+                    const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    boneNames.set(clean, child.name);
+                  }
+                });
+
+                clip.tracks.forEach((track) => {
+                  const parts = track.name.split('.');
+                  const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+                  if (boneNames.has(cleanTrack)) {
+                    track.name = `${boneNames.get(cleanTrack)}.${parts[1]}`;
+                  }
+                });
+
                 walkAction = mixer.clipAction(clip);
               }
               checkAssetsReady();
@@ -233,6 +267,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     let lastTime = performance.now();
     let currentSpeed = 0;
     let currentTilt = 0;
+    let walkCycle = 0;
     let animFrameId: number;
 
     const animate = () => {
@@ -244,31 +279,28 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       const input = moveVectorRef.current;
       const isInputActive = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
 
-      const targetSpeed = isInputActive ? 11 : 0;
-      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 8);
+      const targetSpeed = isInputActive ? 8.5 : 0;
+      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 9);
 
       const camYaw = cameraAnglesRef.current.yaw;
+      playerGroup.rotation.y = camYaw;
+
       const forwardX = -Math.sin(camYaw);
       const forwardZ = -Math.cos(camYaw);
       const rightX = Math.cos(camYaw);
       const rightZ = -Math.sin(camYaw);
 
-      if (currentSpeed > 0.1) {
+      if (currentSpeed > 0.05) {
         const moveDirX = rightX * input.x + forwardX * (-input.y);
         const moveDirZ = rightZ * input.x + forwardZ * (-input.y);
 
         playerGroup.position.x += moveDirX * currentSpeed * delta;
         playerGroup.position.z += moveDirZ * currentSpeed * delta;
 
-        const targetRotY = Math.atan2(moveDirX, moveDirZ);
-        let rotDiff = targetRotY - playerGroup.rotation.y;
-        while (rotDiff > Math.PI) rotDiff -= 2 * Math.PI;
-        while (rotDiff < -Math.PI) rotDiff += 2 * Math.PI;
+        walkCycle += delta * currentSpeed * 1.5;
 
-        playerGroup.rotation.y += rotDiff * delta * 12;
-
-        const targetTilt = THREE.MathUtils.clamp(-rotDiff * 0.4, -0.25, 0.25);
-        currentTilt = THREE.MathUtils.lerp(currentTilt, targetTilt, delta * 6);
+        const targetTilt = THREE.MathUtils.clamp(-input.x * 0.18, -0.2, 0.2);
+        currentTilt = THREE.MathUtils.lerp(currentTilt, targetTilt, delta * 8);
 
         if (walkAction && !walkAction.isRunning()) {
           walkAction.play();
@@ -282,32 +314,34 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
       visualModelGroup.rotation.z = currentTilt;
 
-      if (!walkAction && currentSpeed > 0.5) {
-        visualModelGroup.position.y = Math.sin(currentTime * 0.012) * 0.06;
-      } else if (!walkAction) {
-        visualModelGroup.position.y = THREE.MathUtils.lerp(visualModelGroup.position.y, 0, delta * 10);
-      }
+      const bounceY = Math.abs(Math.sin(walkCycle * 2.2)) * 0.05 * (currentSpeed / 8.5);
+      const swayRoll = Math.sin(walkCycle) * 0.03 * (currentSpeed / 8.5);
+      visualModelGroup.position.y = bounceY;
+      visualModelGroup.rotation.y = swayRoll;
 
       if (mixer) {
         mixer.update(delta);
       }
 
       const camPitch = cameraAnglesRef.current.pitch;
-      const camDist = 4.2;
-      const shoulderX = 0.9;
-      const shoulderY = 1.7;
+      const camDist = 2.8;
+      const shoulderX = 0.65;
+      const shoulderY = 1.65;
 
-      const offsetX = rightX * shoulderX + Math.sin(camYaw) * (camDist * Math.cos(camPitch));
-      const offsetY = shoulderY + Math.sin(camPitch) * camDist;
-      const offsetZ = rightZ * shoulderX + Math.cos(camYaw) * (camDist * Math.cos(camPitch));
+      const cosPitch = Math.cos(camPitch);
+      const sinPitch = Math.sin(camPitch);
+
+      const offsetX = rightX * shoulderX + Math.sin(camYaw) * (camDist * cosPitch);
+      const offsetY = shoulderY + sinPitch * camDist;
+      const offsetZ = rightZ * shoulderX + Math.cos(camYaw) * (camDist * cosPitch);
 
       camera.position.x = playerGroup.position.x + offsetX;
       camera.position.y = playerGroup.position.y + offsetY;
       camera.position.z = playerGroup.position.z + offsetZ;
 
-      const lookTargetX = playerGroup.position.x + rightX * (shoulderX * 0.5);
-      const lookTargetY = playerGroup.position.y + shoulderY * 0.9;
-      const lookTargetZ = playerGroup.position.z + rightZ * (shoulderX * 0.5);
+      const lookTargetX = playerGroup.position.x + rightX * (shoulderX * 0.7);
+      const lookTargetY = playerGroup.position.y + shoulderY * 0.95;
+      const lookTargetZ = playerGroup.position.z + rightZ * (shoulderX * 0.7);
 
       camera.lookAt(lookTargetX, lookTargetY, lookTargetZ);
 
@@ -357,11 +391,11 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         const dy = touch.clientY - lastTouchRef.current.y;
         lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
 
-        cameraAnglesRef.current.yaw -= dx * 0.006;
+        cameraAnglesRef.current.yaw -= dx * 0.0055;
         cameraAnglesRef.current.pitch = THREE.MathUtils.clamp(
-          cameraAnglesRef.current.pitch + dy * 0.004,
-          -0.2,
-          0.65
+          cameraAnglesRef.current.pitch + dy * 0.0035,
+          -0.25,
+          0.55
         );
         break;
       }
@@ -442,8 +476,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           width: '6px',
           height: '6px',
           borderRadius: '50%',
-          backgroundColor: 'rgba(239, 68, 68, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.9)',
+          backgroundColor: 'rgba(239, 68, 68, 0.8)',
+          border: '1px solid #ffffff',
           boxShadow: '0 0 6px #ef4444'
         }} />
       </div>
