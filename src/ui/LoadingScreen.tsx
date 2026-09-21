@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { sound } from '../app/audio';
 
 interface LoadingScreenProps {
   isPortrait: boolean;
@@ -8,6 +9,10 @@ interface LoadingScreenProps {
 export default function LoadingScreen({ isPortrait, onLoaded }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('ИНИЦИАЛИЗАЦИЯ ДУГОВОГО РЕАКТОРА...');
+
+  useEffect(() => {
+    sound.preload();
+  }, []);
 
   useEffect(() => {
     if (isPortrait) return;
