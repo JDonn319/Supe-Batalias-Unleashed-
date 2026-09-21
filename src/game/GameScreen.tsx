@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ArrowLeft } from 'lucide-react';
 import Compass from './Compass';
 import Joystick from './Joystick';
@@ -125,6 +126,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     playerGroup.add(reactorMesh);
 
     const gltfLoader = new GLTFLoader();
+    const fbxLoader = new FBXLoader();
 
     gltfLoader.load(
       '/models/suits/mark3.glb',
@@ -137,11 +139,11 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        gltfLoader.load(
-          '/models/animations/walk.glb',
-          (animGltf) => {
-            if (animGltf.animations.length > 0 && mixer) {
-              const clip = animGltf.animations[0];
+        fbxLoader.load(
+          '/models/animations/walk.fbx',
+          (animFbx) => {
+            if (animFbx.animations.length > 0 && mixer) {
+              const clip = animFbx.animations[0];
               walkAction = mixer.clipAction(clip);
             }
           },
