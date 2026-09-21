@@ -125,19 +125,29 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     playerGroup.add(reactorMesh);
 
     const gltfLoader = new GLTFLoader();
+
     gltfLoader.load(
-      '/models/player.glb',
-      (gltf) => {
+      '/models/suits/mark3.glb',
+      (suitGltf) => {
         playerGroup.remove(fallbackMesh);
         playerGroup.remove(reactorMesh);
-        const model = gltf.scene;
-        model.scale.set(1.2, 1.2, 1.2);
-        playerGroup.add(model);
+        const suitModel = suitGltf.scene;
+        suitModel.scale.set(1.2, 1.2, 1.2);
+        playerGroup.add(suitModel);
 
-        if (gltf.animations.length > 0) {
-          mixer = new THREE.AnimationMixer(model);
-          walkAction = mixer.clipAction(gltf.animations[0]);
-        }
+        mixer = new THREE.AnimationMixer(suitModel);
+
+        gltfLoader.load(
+          '/models/animations/walk.glb',
+          (animGltf) => {
+            if (animGltf.animations.length > 0 && mixer) {
+              const clip = animGltf.animations[0];
+              walkAction = mixer.clipAction(clip);
+            }
+          },
+          undefined,
+          () => {}
+        );
       },
       undefined,
       () => {}
