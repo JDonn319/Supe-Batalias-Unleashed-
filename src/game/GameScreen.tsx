@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ArrowLeft } from 'lucide-react';
 import Compass from './Compass';
@@ -12,125 +11,187 @@ interface GameScreenProps {
   onBack: () => void;
 }
 
-const CHUNK_SIZE = 40;
+const CHUNK_SIZE = 80;
+const ROAD_WIDTH = 12;
 const CHUNK_RADIUS = 3;
 
 export default function GameScreen({ onBack }: GameScreenProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const moveVectorRef = useRef({ x: 0, y: 0 });
   const [isAssetsLoading, setIsAssetsLoading] = useState(true);
-  const [debugLog, setDebugLog] = useState('Диагностика систем...');
+  const [debugLog, setDebugLog] = useState('Генерация мегаполиса...');
 
   const [hudData, setHudData] = useState({
     rotation: 0,
     playerPos: [0, 0] as [number, number],
   });
 
-  const cameraAnglesRef = useRef({ yaw: 0, pitch: 0.1 });
+  const cameraAnglesRef = useRef({ yaw: 0, pitch: 0.12 });
   const touchRightIdRef = useRef<number | null>(null);
   const lastTouchRef = useRef({ x: 0, y: 0 });
 
   const spawnPos: [number, number] = [0, 0];
-  const questPos: [number, number] = [160, -220];
+  const questPos: [number, number] = [240, -320];
 
   useEffect(() => {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x7dd3fc);
-    scene.fog = new THREE.FogExp2(0xbae6fd, 0.008);
+    scene.background = new THREE.Color(0x60a5fa);
+    scene.fog = new THREE.FogExp2(0x93c5fd, 0.007);
 
     const camera = new THREE.PerspectiveCamera(
       55,
       window.innerWidth / window.innerHeight,
       0.1,
-      600
+      800
     );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.1;
     mountRef.current.appendChild(renderer.domElement);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff7ed, 1.6);
-    sunLight.position.set(40, 80, 50);
+    const sunLight = new THREE.DirectionalLight(0xffedd5, 1.8);
+    sunLight.position.set(120, 200, 80);
+    sunLight.castShadow = false;
     scene.add(sunLight);
 
-    const skyGeo = new THREE.SphereGeometry(450, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(650, 32, 16);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x7dd3fc,
+      color: 0x60a5fa,
       side: THREE.BackSide
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
     scene.add(skyDome);
 
-    const createProceduralTexture = () => {
+    const createCityRoadTexture = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 512;
       const ctx = canvas.getContext('2d')!;
 
-      ctx.fillStyle = '#374151';
+      ctx.fillStyle = '#1e293b';
       ctx.fillRect(0, 0, 512, 512);
 
-      const slab = 256;
-      for (let x = 0; x < 512; x += slab) {
-        for (let y = 0; y < 512; y += slab) {
-          ctx.fillStyle = (x + y) % (slab * 2) === 0 ? '#475569' : '#334155';
-          ctx.fillRect(x + 3, y + 3, slab - 6, slab - 6);
+      const margin = (ROAD_WIDTH / CHUNK_SIZE) * 512;
+      const blockWidth = 512 - margin;
 
-          ctx.strokeStyle = '#0f172a';
-          ctx.lineWidth = 6;
-          ctx.strokeRect(x, y, slab, slab);
-        }
-      }
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(margin / 2 - 6, margin / 2 - 6, blockWidth + 12, blockWidth + 12);
 
-      for (let i = 0; i < 4000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
-      }
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(margin / 2, margin / 2, blockWidth, blockWidth);
+
+      ctx.fillStyle = '#475569';
+      const yardPadding = 38;
+      ctx.fillRect(
+        margin / 2 + yardPadding,
+        margin / 2 + yardPadding,
+        blockWidth - yardPadding * 2,
+        blockWidth - yardPadding * 2
+      );
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 12]);
+
+      ctx.beginPath();
+      ctx.moveTo(margin / 4, 0);
+      ctx.lineTo(margin / 4, 512);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(512 - margin / 4, 0);
+      ctx.lineTo(512 - margin / 4, 512);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, margin / 4);
+      ctx.lineTo(512, margin / 4);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 512 - margin / 4);
+      ctx.lineTo(512, 512 - margin / 4);
+      ctx.stroke();
 
       const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(10, 10);
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
       return texture;
     };
 
-    const textureLoader = new THREE.TextureLoader();
-    const floorTexture = createProceduralTexture();
+    const chunkGroundTexture = createCityRoadTexture();
+    const groundGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
+    groundGeo.rotateX(-Math.PI / 2);
 
-    const floorGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
-    floorGeo.rotateX(-Math.PI / 2);
-
-    const floorMat = new THREE.MeshStandardMaterial({
-      map: floorTexture,
-      roughness: 0.85,
+    const groundMat = new THREE.MeshStandardMaterial({
+      map: chunkGroundTexture,
+      roughness: 0.88,
       metalness: 0.1
     });
 
-    textureLoader.load(
-      '/textures/concrete.jpg',
-      (loadedTex) => {
-        loadedTex.wrapS = THREE.RepeatWrapping;
-        loadedTex.wrapT = THREE.RepeatWrapping;
-        loadedTex.repeat.set(10, 10);
-        floorMat.map = loadedTex;
-        floorMat.needsUpdate = true;
-      },
-      undefined,
-      () => {}
-    );
+    const buildingMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.55 }),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.35 }),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.75 }),
+      new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.7, metalness: 0.2 }),
+    ];
 
-    const chunks = new Map<string, THREE.Mesh>();
+    const seededRandom = (x: number, z: number, offset: number) => {
+      const val = Math.sin(x * 12.9898 + z * 78.233 + offset) * 43758.5453;
+      return val - Math.floor(val);
+    };
+
+    const createChunkMesh = (cx: number, cz: number) => {
+      const chunkGroup = new THREE.Group();
+      chunkGroup.position.set(cx * CHUNK_SIZE + CHUNK_SIZE / 2, 0, cz * CHUNK_SIZE + CHUNK_SIZE / 2);
+
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      chunkGroup.add(ground);
+
+      const blockInner = CHUNK_SIZE - ROAD_WIDTH;
+      const bldgOffsets = [
+        { x: -blockInner * 0.26, z: -blockInner * 0.26 },
+        { x: blockInner * 0.26, z: -blockInner * 0.26 },
+        { x: -blockInner * 0.26, z: blockInner * 0.26 },
+        { x: blockInner * 0.26, z: blockInner * 0.26 },
+      ];
+
+      bldgOffsets.forEach((pos, idx) => {
+        const height = 28 + seededRandom(cx, cz, idx * 5) * 60;
+        const widthX = 14 + seededRandom(cx, cz, idx * 7) * 8;
+        const widthZ = 14 + seededRandom(cx, cz, idx * 11) * 8;
+
+        const bldgGeo = new THREE.BoxGeometry(widthX, height, widthZ);
+        const matIdx = Math.floor(seededRandom(cx, cz, idx * 13) * buildingMaterials.length);
+        const bldgMesh = new THREE.Mesh(bldgGeo, buildingMaterials[matIdx]);
+
+        bldgMesh.position.set(pos.x, height / 2, pos.z);
+        chunkGroup.add(bldgMesh);
+
+        if (seededRandom(cx, cz, idx * 17) > 0.45) {
+          const topHeight = 6 + seededRandom(cx, cz, idx * 19) * 12;
+          const topGeo = new THREE.BoxGeometry(widthX * 0.65, topHeight, widthZ * 0.65);
+          const topMesh = new THREE.Mesh(topGeo, buildingMaterials[matIdx]);
+          topMesh.position.set(pos.x, height + topHeight / 2, pos.z);
+          chunkGroup.add(topMesh);
+        }
+      });
+
+      return chunkGroup;
+    };
+
+    const chunks = new Map<string, THREE.Group>();
 
     const updateChunks = (px: number, pz: number) => {
       const curCx = Math.floor(px / CHUNK_SIZE);
@@ -145,17 +206,16 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           activeKeys.add(key);
 
           if (!chunks.has(key)) {
-            const mesh = new THREE.Mesh(floorGeo, floorMat);
-            mesh.position.set(cx * CHUNK_SIZE + CHUNK_SIZE / 2, 0, cz * CHUNK_SIZE + CHUNK_SIZE / 2);
-            scene.add(mesh);
-            chunks.set(key, mesh);
+            const chunkGroup = createChunkMesh(cx, cz);
+            scene.add(chunkGroup);
+            chunks.set(key, chunkGroup);
           }
         }
       }
 
-      chunks.forEach((mesh, key) => {
+      chunks.forEach((chunkGroup, key) => {
         if (!activeKeys.has(key)) {
-          scene.remove(mesh);
+          scene.remove(chunkGroup);
           chunks.delete(key);
         }
       });
@@ -174,32 +234,13 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     let walkAction: THREE.AnimationAction | null = null;
 
     const gltfLoader = new GLTFLoader();
-    const fbxLoader = new FBXLoader();
-
-    const normalizeBone = (str: string) => {
-      return str
-        .toLowerCase()
-        .replace(/^.*[|/:]/, '')
-        .replace(/mixamorig\d*/g, '')
-        .replace(/[^a-z0-9]/g, '');
-    };
 
     gltfLoader.load(
       '/models/suits/mark3.glb',
       (suitGltf) => {
         const suitModel = suitGltf.scene;
 
-        let totalBones = 0;
-        const boneMap = new Map<string, string>();
-        let firstBoneName = '';
-
         suitModel.traverse((child) => {
-          if ((child as THREE.Bone).isBone) {
-            totalBones++;
-            if (!firstBoneName) firstBoneName = child.name;
-            const clean = normalizeBone(child.name);
-            boneMap.set(clean, child.name);
-          }
           if ((child as THREE.Mesh).isMesh) {
             const m = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
             if (m) {
@@ -228,58 +269,27 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        fbxLoader.load(
-          '/models/animations/walk.fbx',
-          (animFbx) => {
-            if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
-              const clip = animFbx.animations[0];
-              let matchedTracks = 0;
-              const sampleFbx = clip.tracks[0]?.name || '';
+        if (suitGltf.animations && suitGltf.animations.length > 0) {
+          walkAction = mixer.clipAction(suitGltf.animations[0]);
+          walkAction.setLoop(THREE.LoopRepeat, Infinity);
+          setDebugLog(`GLB: Анимаций (${suitGltf.animations.length}) | Мегаполис готов`);
+        } else {
+          setDebugLog('Костюм на улицах города (ожидает анимаций)');
+        }
 
-              clip.tracks.forEach((track) => {
-                const lastDot = track.name.lastIndexOf('.');
-                const bonePath = track.name.substring(0, lastDot);
-                const property = track.name.substring(lastDot + 1);
-
-                const cleanTrack = normalizeBone(bonePath);
-
-                if (boneMap.has(cleanTrack)) {
-                  const targetName = boneMap.get(cleanTrack)!;
-                  track.name = `${targetName}.${property}`;
-                  matchedTracks++;
-                }
-              });
-
-              if (matchedTracks > 0) {
-                walkAction = mixer.clipAction(clip);
-                walkAction.setLoop(THREE.LoopRepeat, Infinity);
-                setDebugLog(`Костей: ${totalBones} | Связано: ${matchedTracks} (АНИМАЦИЯ ГОТОВА)`);
-              } else {
-                setDebugLog(`0 треков | FBX: "${sampleFbx.slice(0, 16)}" | Кость: "${firstBoneName.slice(0, 16)}"`);
-              }
-            } else {
-              setDebugLog(`Костей: ${totalBones} | В walk.fbx нет анимации`);
-            }
-            setIsAssetsLoading(false);
-          },
-          undefined,
-          () => {
-            setDebugLog(`Костей: ${totalBones} | Файл walk.fbx не найден (404)`);
-            setIsAssetsLoading(false);
-          }
-        );
+        setIsAssetsLoading(false);
       },
       undefined,
       () => {
-        setDebugLog('Ошибка: mark3.glb не найден');
+        setDebugLog('Костюм загружается...');
         setIsAssetsLoading(false);
       }
     );
 
-    const beaconGeo = new THREE.CylinderGeometry(0.2, 0.2, 120, 8);
-    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.7 });
+    const beaconGeo = new THREE.CylinderGeometry(0.3, 0.3, 200, 8);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.8 });
     const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-    beacon.position.set(questPos[0], 60, questPos[1]);
+    beacon.position.set(questPos[0], 100, questPos[1]);
     scene.add(beacon);
 
     let lastTime = performance.now();
@@ -295,7 +305,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       const input = moveVectorRef.current;
       const isInputActive = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
 
-      const targetSpeed = isInputActive ? 8.0 : 0;
+      const targetSpeed = isInputActive ? 10.0 : 0;
       currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 10);
 
       const camYaw = cameraAnglesRef.current.yaw;
@@ -330,9 +340,9 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       }
 
       const camPitch = cameraAnglesRef.current.pitch;
-      const camDist = 2.4;
-      const shoulderX = 0.55;
-      const shoulderY = 1.75;
+      const camDist = 3.0;
+      const shoulderX = 0.7;
+      const shoulderY = 1.85;
 
       const cosPitch = Math.cos(camPitch);
       const sinPitch = Math.sin(camPitch);
