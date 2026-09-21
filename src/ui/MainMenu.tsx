@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 export default function MainMenu() {
   const [isMuted, setIsMuted] = useState(false);
 
-  const buttonBaseStyle: React.CSSProperties = {
+  const buttonBaseStyle: CSSProperties = {
     width: '420px',
     maxWidth: '75vw',
     height: '42px',
@@ -24,14 +24,14 @@ export default function MainMenu() {
     backgroundSize: '100% 4px'
   };
 
-  const primaryButtonStyle: React.CSSProperties = {
+  const primaryButtonStyle: CSSProperties = {
     ...buttonBaseStyle,
     background: 'linear-gradient(180deg, #b91c1c 0%, #7f1d1d 50%, #450a0a 100%)',
     borderColor: '#f87171',
     boxShadow: '0 0 15px rgba(185, 28, 28, 0.6)'
   };
 
-  const secondaryButtonStyle: React.CSSProperties = {
+  const secondaryButtonStyle: CSSProperties = {
     ...buttonBaseStyle,
     background: 'linear-gradient(180deg, #475569 0%, #1e293b 50%, #0f172a 100%)',
     borderColor: '#94a3b8'
@@ -48,7 +48,7 @@ export default function MainMenu() {
       justifyContent: 'space-between',
       padding: '30px 0 20px 0',
       backgroundColor: '#020408',
-      backgroundRadial: 'radial-gradient(circle at center, #0f172a 0%, #000000 100%)',
+      background: 'radial-gradient(circle at center, #0f172a 0%, #000000 100%)',
       overflow: 'hidden'
     }}>
       <style>{`
