@@ -1,10 +1,17 @@
+import { ArrowLeft } from 'lucide-react';
 import { sound } from '../app/audio';
 
 interface ModeSelectProps {
   onBack: () => void;
+  onSinglePlayer: () => void;
 }
 
-export default function ModeSelect({ onBack }: ModeSelectProps) {
+export default function ModeSelect({ onBack, onSinglePlayer }: ModeSelectProps) {
+  const handleSinglePlayer = () => {
+    sound.playClick();
+    onSinglePlayer();
+  };
+
   const handleAction = () => {
     sound.playClick();
   };
@@ -96,14 +103,18 @@ export default function ModeSelect({ onBack }: ModeSelectProps) {
             border: '1px solid rgba(239, 68, 68, 0.35)',
             borderRadius: '0px',
             color: '#ffffff',
-            padding: '6px 14px',
+            padding: '7px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
             fontSize: '11px',
             fontWeight: 700,
             letterSpacing: '1px',
             cursor: 'pointer'
           }}
         >
-          НАЗАД
+          <ArrowLeft size={16} />
+          <span>НАЗАД</span>
         </button>
       </div>
 
@@ -114,7 +125,7 @@ export default function ModeSelect({ onBack }: ModeSelectProps) {
         zIndex: 5
       }}>
         <button className="menu-btn" onClick={handleAction}>СЮЖЕТ</button>
-        <button className="menu-btn" onClick={handleAction}>ОДИНОЧНАЯ ИГРА</button>
+        <button className="menu-btn" onClick={handleSinglePlayer}>ОДИНОЧНАЯ ИГРА</button>
         <button className="menu-btn" onClick={handleAction}>МУЛЬТИПЛЕЕР</button>
       </div>
 
