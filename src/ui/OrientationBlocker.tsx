@@ -1,23 +1,8 @@
-import { useEffect, useState } from 'react';
+interface OrientationBlockerProps {
+  isPortrait: boolean;
+}
 
-export default function OrientationBlocker() {
-  const [isPortrait, setIsPortrait] = useState(false);
-
-  useEffect(() => {
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    };
-
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    window.addEventListener('orientationchange', checkOrientation);
-
-    return () => {
-      window.removeEventListener('resize', checkOrientation);
-      window.removeEventListener('orientationchange', checkOrientation);
-    };
-  }, []);
-
+export default function OrientationBlocker({ isPortrait }: OrientationBlockerProps) {
   if (!isPortrait) return null;
 
   return (
