@@ -3,9 +3,10 @@ import OrientationBlocker from '../ui/OrientationBlocker';
 import LoadingScreen from '../ui/LoadingScreen';
 import MainMenu from '../ui/MainMenu';
 import ModeSelect from '../ui/ModeSelect';
+import GameScreen from '../game/GameScreen';
 
 export default function App() {
-  const [screen, setScreen] = useState<'loading' | 'menu' | 'mode-select'>('loading');
+  const [screen, setScreen] = useState<'loading' | 'menu' | 'mode-select' | 'game'>('loading');
   const [isPortrait, setIsPortrait] = useState(false);
 
   useEffect(() => {
@@ -33,7 +34,13 @@ export default function App() {
         <MainMenu onStartGame={() => setScreen('mode-select')} />
       )}
       {screen === 'mode-select' && (
-        <ModeSelect onBack={() => setScreen('menu')} />
+        <ModeSelect
+          onBack={() => setScreen('menu')}
+          onSinglePlayer={() => setScreen('game')}
+        />
+      )}
+      {screen === 'game' && (
+        <GameScreen onBack={() => setScreen('mode-select')} />
       )}
     </main>
   );
