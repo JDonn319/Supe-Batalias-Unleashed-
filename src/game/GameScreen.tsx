@@ -11,15 +11,15 @@ interface GameScreenProps {
   onBack: () => void;
 }
 
-const CHUNK_SIZE = 80;
-const ROAD_WIDTH = 12;
+const CHUNK_SIZE = 90;
+const ROAD_WIDTH = 14;
 const CHUNK_RADIUS = 3;
 
 export default function GameScreen({ onBack }: GameScreenProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const moveVectorRef = useRef({ x: 0, y: 0 });
   const [isAssetsLoading, setIsAssetsLoading] = useState(true);
-  const [debugLog, setDebugLog] = useState('Генерация мегаполиса...');
+  const [debugLog, setDebugLog] = useState('Генерация открытого мира...');
 
   const [hudData, setHudData] = useState({
     rotation: 0,
@@ -31,49 +31,105 @@ export default function GameScreen({ onBack }: GameScreenProps) {
   const lastTouchRef = useRef({ x: 0, y: 0 });
 
   const spawnPos: [number, number] = [0, 0];
-  const questPos: [number, number] = [240, -320];
+  const questPos: [number, number] = [270, -360];
 
   useEffect(() => {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x60a5fa);
-    scene.fog = new THREE.FogExp2(0x93c5fd, 0.007);
+    scene.background = new THREE.Color(0x38bdf8);
+    scene.fog = new THREE.FogExp2(0x7dd3fc, 0.0065);
 
     const camera = new THREE.PerspectiveCamera(
       55,
       window.innerWidth / window.innerHeight,
       0.1,
-      800
+      900
     );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.15;
     mountRef.current.appendChild(renderer.domElement);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffedd5, 1.8);
-    sunLight.position.set(120, 200, 80);
-    sunLight.castShadow = false;
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 2.0);
+    sunLight.position.set(100, 180, 80);
     scene.add(sunLight);
 
-    const skyGeo = new THREE.SphereGeometry(650, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(750, 32, 16);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x60a5fa,
+      color: 0x38bdf8,
       side: THREE.BackSide
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
     scene.add(skyDome);
 
-    const createCityRoadTexture = () => {
+    const makeBuildingFacadeTexture = (baseColor: string, windowColor: string) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d')!;
+
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(0, 0, 128, 256);
+
+      const rows = 16;
+      const cols = 6;
+      const winW = 12;
+      const winH = 9;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = 10 + c * 19;
+          const y = 8 + r * 15;
+          ctx.fillStyle = Math.random() > 0.35 ? windowColor : '#0f172a';
+          ctx.fillRect(x, y, winW, winH);
+        }
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      for (let r = 0; r < rows; r++) {
+        ctx.fillRect(0, r * 15, 128, 2);
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    };
+
+    const bldgMats = [
+      new THREE.MeshStandardMaterial({
+        map: makeBuildingFacadeTexture('#1e293b', '#93c5fd'),
+        roughness: 0.5,
+        metalness: 0.35
+      }),
+      new THREE.MeshStandardMaterial({
+        map: makeBuildingFacadeTexture('#334155', '#fef08a'),
+        roughness: 0.6,
+        metalness: 0.25
+      }),
+      new THREE.MeshStandardMaterial({
+        map: makeBuildingFacadeTexture('#0f172a', '#67e8f9'),
+        roughness: 0.4,
+        metalness: 0.5
+      }),
+      new THREE.MeshStandardMaterial({
+        map: makeBuildingFacadeTexture('#475569', '#bae6fd'),
+        roughness: 0.65,
+        metalness: 0.2
+      })
+    ];
+
+    const createCityGroundTexture = (hasPark: boolean) => {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 512;
@@ -83,110 +139,198 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       ctx.fillRect(0, 0, 512, 512);
 
       const margin = (ROAD_WIDTH / CHUNK_SIZE) * 512;
-      const blockWidth = 512 - margin;
+      const innerW = 512 - margin;
 
       ctx.fillStyle = '#64748b';
-      ctx.fillRect(margin / 2 - 6, margin / 2 - 6, blockWidth + 12, blockWidth + 12);
+      ctx.fillRect(margin / 2 - 8, margin / 2 - 8, innerW + 16, innerW + 16);
 
       ctx.fillStyle = '#334155';
-      ctx.fillRect(margin / 2, margin / 2, blockWidth, blockWidth);
+      ctx.fillRect(margin / 2, margin / 2, innerW, innerW);
 
-      ctx.fillStyle = '#475569';
-      const yardPadding = 38;
-      ctx.fillRect(
-        margin / 2 + yardPadding,
-        margin / 2 + yardPadding,
-        blockWidth - yardPadding * 2,
-        blockWidth - yardPadding * 2
-      );
+      if (hasPark) {
+        ctx.fillStyle = '#166534';
+        const parkInset = 55;
+        ctx.fillRect(
+          margin / 2 + parkInset,
+          margin / 2 + parkInset,
+          innerW - parkInset * 2,
+          innerW - parkInset * 2
+        );
 
-      ctx.strokeStyle = '#e2e8f0';
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(215, 215, 82, 82);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(margin / 2 + parkInset, 246, innerW - parkInset * 2, 20);
+        ctx.fillRect(246, margin / 2 + parkInset, 20, innerW - parkInset * 2);
+      } else {
+        ctx.fillStyle = '#475569';
+        const plazaInset = 50;
+        ctx.fillRect(
+          margin / 2 + plazaInset,
+          margin / 2 + plazaInset,
+          innerW - plazaInset * 2,
+          innerW - plazaInset * 2
+        );
+      }
+
+      ctx.strokeStyle = '#f8fafc';
       ctx.lineWidth = 3;
-      ctx.setLineDash([12, 12]);
+      ctx.setLineDash([14, 14]);
 
+      const halfRoad = margin / 4;
       ctx.beginPath();
-      ctx.moveTo(margin / 4, 0);
-      ctx.lineTo(margin / 4, 512);
+      ctx.moveTo(halfRoad, 0);
+      ctx.lineTo(halfRoad, 512);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(512 - margin / 4, 0);
-      ctx.lineTo(512 - margin / 4, 512);
+      ctx.moveTo(512 - halfRoad, 0);
+      ctx.lineTo(512 - halfRoad, 512);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(0, margin / 4);
-      ctx.lineTo(512, margin / 4);
+      ctx.moveTo(0, halfRoad);
+      ctx.lineTo(512, halfRoad);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(0, 512 - margin / 4);
-      ctx.lineTo(512, 512 - margin / 4);
+      ctx.moveTo(0, 512 - halfRoad);
+      ctx.lineTo(512, 512 - halfRoad);
       ctx.stroke();
 
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = THREE.ClampToEdgeWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      return texture;
+      ctx.setLineDash([]);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#ffffff';
+
+      const drawZebra = (x: number, y: number, w: number, h: number, horizontal: boolean) => {
+        ctx.fillStyle = '#ffffff';
+        if (horizontal) {
+          for (let i = 0; i < w; i += 12) ctx.fillRect(x + i, y, 7, h);
+        } else {
+          for (let i = 0; i < h; i += 12) ctx.fillRect(x, y + i, w, 7);
+        }
+      };
+
+      drawZebra(margin / 2 - 2, 6, 4, margin - 12, false);
+      drawZebra(512 - margin / 2 - 2, 6, 4, margin - 12, false);
+      drawZebra(6, margin / 2 - 2, margin - 12, 4, true);
+      drawZebra(6, 512 - margin / 2 - 2, margin - 12, 4, true);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      return tex;
     };
 
-    const chunkGroundTexture = createCityRoadTexture();
+    const parkGroundTex = createCityGroundTexture(true);
+    const plazaGroundTex = createCityGroundTexture(false);
+
     const groundGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
     groundGeo.rotateX(-Math.PI / 2);
 
-    const groundMat = new THREE.MeshStandardMaterial({
-      map: chunkGroundTexture,
-      roughness: 0.88,
-      metalness: 0.1
-    });
+    const parkGroundMat = new THREE.MeshStandardMaterial({ map: parkGroundTex, roughness: 0.9, metalness: 0.05 });
+    const plazaGroundMat = new THREE.MeshStandardMaterial({ map: plazaGroundTex, roughness: 0.85, metalness: 0.1 });
 
-    const buildingMaterials = [
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.55 }),
-      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.35 }),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.75 }),
-      new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.7, metalness: 0.2 }),
-    ];
-
-    const seededRandom = (x: number, z: number, offset: number) => {
-      const val = Math.sin(x * 12.9898 + z * 78.233 + offset) * 43758.5453;
+    const pseudoRandom = (x: number, z: number, seed: number) => {
+      const val = Math.sin(x * 12.9898 + z * 78.233 + seed) * 43758.5453;
       return val - Math.floor(val);
     };
 
-    const createChunkMesh = (cx: number, cz: number) => {
+    const createChunk = (cx: number, cz: number) => {
       const chunkGroup = new THREE.Group();
       chunkGroup.position.set(cx * CHUNK_SIZE + CHUNK_SIZE / 2, 0, cz * CHUNK_SIZE + CHUNK_SIZE / 2);
 
-      const ground = new THREE.Mesh(groundGeo, groundMat);
-      chunkGroup.add(ground);
+      const blockType = Math.floor(pseudoRandom(cx, cz, 1) * 3);
+      const isParkBlock = blockType === 0;
 
-      const blockInner = CHUNK_SIZE - ROAD_WIDTH;
-      const bldgOffsets = [
-        { x: -blockInner * 0.26, z: -blockInner * 0.26 },
-        { x: blockInner * 0.26, z: -blockInner * 0.26 },
-        { x: -blockInner * 0.26, z: blockInner * 0.26 },
-        { x: blockInner * 0.26, z: blockInner * 0.26 },
-      ];
+      const groundMesh = new THREE.Mesh(groundGeo, isParkBlock ? parkGroundMat : plazaGroundMat);
+      chunkGroup.add(groundMesh);
 
-      bldgOffsets.forEach((pos, idx) => {
-        const height = 28 + seededRandom(cx, cz, idx * 5) * 60;
-        const widthX = 14 + seededRandom(cx, cz, idx * 7) * 8;
-        const widthZ = 14 + seededRandom(cx, cz, idx * 11) * 8;
+      const innerSize = CHUNK_SIZE - ROAD_WIDTH;
+      const halfInner = innerSize / 2;
 
-        const bldgGeo = new THREE.BoxGeometry(widthX, height, widthZ);
-        const matIdx = Math.floor(seededRandom(cx, cz, idx * 13) * buildingMaterials.length);
-        const bldgMesh = new THREE.Mesh(bldgGeo, buildingMaterials[matIdx]);
+      if (blockType === 0) {
+        const wallThickness = 14;
+        const bldgHeightBase = 50 + pseudoRandom(cx, cz, 4) * 45;
 
-        bldgMesh.position.set(pos.x, height / 2, pos.z);
-        chunkGroup.add(bldgMesh);
+        const leftH = bldgHeightBase + (pseudoRandom(cx, cz, 5) > 0.5 ? 15 : 0);
+        const leftGeo = new THREE.BoxGeometry(wallThickness, leftH, innerSize);
+        const leftMesh = new THREE.Mesh(leftGeo, bldgMats[0]);
+        leftMesh.position.set(-halfInner + wallThickness / 2, leftH / 2, 0);
+        chunkGroup.add(leftMesh);
 
-        if (seededRandom(cx, cz, idx * 17) > 0.45) {
-          const topHeight = 6 + seededRandom(cx, cz, idx * 19) * 12;
-          const topGeo = new THREE.BoxGeometry(widthX * 0.65, topHeight, widthZ * 0.65);
-          const topMesh = new THREE.Mesh(topGeo, buildingMaterials[matIdx]);
-          topMesh.position.set(pos.x, height + topHeight / 2, pos.z);
-          chunkGroup.add(topMesh);
-        }
-      });
+        const rightH = bldgHeightBase;
+        const rightGeo = new THREE.BoxGeometry(wallThickness, rightH, innerSize);
+        const rightMesh = new THREE.Mesh(rightGeo, bldgMats[1]);
+        rightMesh.position.set(halfInner - wallThickness / 2, rightH / 2, 0);
+        chunkGroup.add(rightMesh);
+
+        const topH = bldgHeightBase + 20;
+        const topW = innerSize - wallThickness * 2;
+        const topGeo = new THREE.BoxGeometry(topW, topH, wallThickness);
+        const topMesh = new THREE.Mesh(topGeo, bldgMats[2]);
+        topMesh.position.set(0, topH / 2, -halfInner + wallThickness / 2);
+        chunkGroup.add(topMesh);
+
+        const gateW = 16;
+        const frontSegmentW = (topW - gateW) / 2;
+        const frontH = bldgHeightBase - 10;
+
+        const f1Geo = new THREE.BoxGeometry(frontSegmentW, frontH, wallThickness);
+        const f1Mesh = new THREE.Mesh(f1Geo, bldgMats[3]);
+        f1Mesh.position.set(-halfInner + wallThickness + frontSegmentW / 2, frontH / 2, halfInner - wallThickness / 2);
+        chunkGroup.add(f1Mesh);
+
+        const f2Geo = new THREE.BoxGeometry(frontSegmentW, frontH, wallThickness);
+        const f2Mesh = new THREE.Mesh(f2Geo, bldgMats[3]);
+        f2Mesh.position.set(halfInner - wallThickness - frontSegmentW / 2, frontH / 2, halfInner - wallThickness / 2);
+        chunkGroup.add(f2Mesh);
+      } else if (blockType === 1) {
+        const towerH = 85 + pseudoRandom(cx, cz, 7) * 40;
+        const towerW = 24;
+
+        const t1Geo = new THREE.BoxGeometry(towerW, towerH, towerW);
+        const t1Mesh = new THREE.Mesh(t1Geo, bldgMats[2]);
+        t1Mesh.position.set(-15, towerH / 2, -15);
+        chunkGroup.add(t1Mesh);
+
+        const t2Geo = new THREE.BoxGeometry(towerW, towerH, towerW);
+        const t2Mesh = new THREE.Mesh(t2Geo, bldgMats[2]);
+        t2Mesh.position.set(15, towerH / 2, 15);
+        chunkGroup.add(t2Mesh);
+
+        const sideH = towerH * 0.65;
+        const sideGeo = new THREE.BoxGeometry(towerW * 0.9, sideH, towerW * 0.9);
+        const sideMesh1 = new THREE.Mesh(sideGeo, bldgMats[0]);
+        sideMesh1.position.set(15, sideH / 2, -15);
+        chunkGroup.add(sideMesh1);
+
+        const sideMesh2 = new THREE.Mesh(sideGeo, bldgMats[1]);
+        sideMesh2.position.set(-15, sideH / 2, 15);
+        chunkGroup.add(sideMesh2);
+
+        const spireGeo = new THREE.CylinderGeometry(0.5, 2, 16, 8);
+        const spireMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 });
+        const spire = new THREE.Mesh(spireGeo, spireMat);
+        spire.position.set(-15, towerH + 8, -15);
+        chunkGroup.add(spire);
+      } else {
+        const buildingW = (innerSize - 6) / 2;
+        const bldgList = [
+          { x: -buildingW / 2 - 3, z: -buildingW / 2 - 3, h: 55 + pseudoRandom(cx, cz, 11) * 35 },
+          { x: buildingW / 2 + 3, z: -buildingW / 2 - 3, h: 65 + pseudoRandom(cx, cz, 13) * 30 },
+          { x: -buildingW / 2 - 3, z: buildingW / 2 + 3, h: 48 + pseudoRandom(cx, cz, 17) * 35 },
+          { x: buildingW / 2 + 3, z: buildingW / 2 + 3, h: 75 + pseudoRandom(cx, cz, 19) * 45 },
+        ];
+
+        bldgList.forEach((b, idx) => {
+          const geo = new THREE.BoxGeometry(buildingW, b.h, buildingW);
+          const mesh = new THREE.Mesh(geo, bldgMats[idx % bldgMats.length]);
+          mesh.position.set(b.x, b.h / 2, b.z);
+          chunkGroup.add(mesh);
+        });
+      }
 
       return chunkGroup;
     };
@@ -206,16 +350,16 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           activeKeys.add(key);
 
           if (!chunks.has(key)) {
-            const chunkGroup = createChunkMesh(cx, cz);
-            scene.add(chunkGroup);
-            chunks.set(key, chunkGroup);
+            const chunkMesh = createChunk(cx, cz);
+            scene.add(chunkMesh);
+            chunks.set(key, chunkMesh);
           }
         }
       }
 
-      chunks.forEach((chunkGroup, key) => {
+      chunks.forEach((group, key) => {
         if (!activeKeys.has(key)) {
-          scene.remove(chunkGroup);
+          scene.remove(group);
           chunks.delete(key);
         }
       });
@@ -274,22 +418,22 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           walkAction.setLoop(THREE.LoopRepeat, Infinity);
           setDebugLog(`GLB: Анимаций (${suitGltf.animations.length}) | Мегаполис готов`);
         } else {
-          setDebugLog('Костюм на улицах города (ожидает анимаций)');
+          setDebugLog('Костюм на улицах города');
         }
 
         setIsAssetsLoading(false);
       },
       undefined,
       () => {
-        setDebugLog('Костюм загружается...');
+        setDebugLog('Загрузка открытого мира...');
         setIsAssetsLoading(false);
       }
     );
 
-    const beaconGeo = new THREE.CylinderGeometry(0.3, 0.3, 200, 8);
-    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.8 });
+    const beaconGeo = new THREE.CylinderGeometry(0.35, 0.35, 300, 8);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.85 });
     const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-    beacon.position.set(questPos[0], 100, questPos[1]);
+    beacon.position.set(questPos[0], 150, questPos[1]);
     scene.add(beacon);
 
     let lastTime = performance.now();
@@ -305,7 +449,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       const input = moveVectorRef.current;
       const isInputActive = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
 
-      const targetSpeed = isInputActive ? 10.0 : 0;
+      const targetSpeed = isInputActive ? 10.5 : 0;
       currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 10);
 
       const camYaw = cameraAnglesRef.current.yaw;
@@ -340,8 +484,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       }
 
       const camPitch = cameraAnglesRef.current.pitch;
-      const camDist = 3.0;
-      const shoulderX = 0.7;
+      const camDist = 3.2;
+      const shoulderX = 0.75;
       const shoulderY = 1.85;
 
       const cosPitch = Math.cos(camPitch);
@@ -412,7 +556,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         cameraAnglesRef.current.pitch = THREE.MathUtils.clamp(
           cameraAnglesRef.current.pitch + dy * 0.0035,
           -0.2,
-          0.5
+          0.55
         );
         break;
       }
