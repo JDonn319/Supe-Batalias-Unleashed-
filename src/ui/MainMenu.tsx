@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { sound } from '../app/audio';
 
-export default function MainMenu() {
+interface MainMenuProps {
+  onStartGame: () => void;
+}
+
+export default function MainMenu({ onStartGame }: MainMenuProps) {
   const [muted, setMuted] = useState(sound.isMuted);
 
   const toggleSound = () => {
@@ -10,6 +14,11 @@ export default function MainMenu() {
     if (!sound.isMuted) {
       sound.playClick();
     }
+  };
+
+  const handleStart = () => {
+    sound.playClick();
+    onStartGame();
   };
 
   const handleAction = () => {
@@ -148,7 +157,7 @@ export default function MainMenu() {
           flexDirection: 'column',
           gap: '12px'
         }}>
-          <button className="menu-btn" onClick={handleAction}>НАЧАТЬ</button>
+          <button className="menu-btn" onClick={handleStart}>НАЧАТЬ</button>
           <button className="menu-btn" onClick={handleAction}>ХРАНИЛИЩЕ</button>
           <button className="menu-btn" onClick={handleAction}>ЛИДЕРЫ</button>
         </div>
