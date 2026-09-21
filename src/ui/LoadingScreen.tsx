@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 
 interface LoadingScreenProps {
+  isPortrait: boolean;
   onLoaded: () => void;
 }
 
-export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
+export default function LoadingScreen({ isPortrait, onLoaded }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('ИНИЦИАЛИЗАЦИЯ ДУГОВОГО РЕАКТОРА...');
 
   useEffect(() => {
+    if (isPortrait) return;
+
     const interval = setInterval(() => {
       setProgress((prev) => {
         const next = prev + 1;
@@ -27,7 +30,7 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
     }, 28);
 
     return () => clearInterval(interval);
-  }, [onLoaded]);
+  }, [isPortrait, onLoaded]);
 
   return (
     <div style={{
@@ -43,8 +46,8 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
     }}>
       <style>{`
         @keyframes logoPulseGlow {
-          0%, 100% { filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.45)); }
-          50% { filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.95)); }
+          0%, 100% { filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.4)); }
+          50% { filter: drop-shadow(0 0 45px rgba(239, 68, 68, 0.9)); }
         }
       `}</style>
 
@@ -53,18 +56,19 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: '60px',
+        marginTop: '3vh',
+        marginBottom: '40px',
         animation: 'logoPulseGlow 3s infinite ease-in-out'
       }}>
         <img
           src="/logo.png"
-          alt="Iron Man Unleashed Silhoette"
+          alt="Iron Man Unleashed Silhouette"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
           style={{
-            maxWidth: '55vw',
-            maxHeight: '35vh',
+            maxWidth: '65vw',
+            maxHeight: '40vh',
             objectFit: 'contain',
             filter: 'grayscale(100%) brightness(20%)',
             opacity: 0.6
@@ -92,14 +96,14 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
 
       <div style={{
         position: 'absolute',
-        bottom: '12%',
+        bottom: '10%',
         width: '55%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center'
       }}>
         <span style={{
-          color: '#8ab4f8',
+          color: '#f87171',
           fontSize: '11px',
           letterSpacing: '3px',
           fontFamily: 'sans-serif',
@@ -112,14 +116,14 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
         <div style={{
           width: '100%',
           height: '4px',
-          backgroundColor: '#1e293b',
+          backgroundColor: '#261315',
           borderRadius: '2px',
           overflow: 'hidden'
         }}>
           <div style={{
             width: `${progress}%`,
             height: '100%',
-            backgroundColor: '#38bdf8',
+            backgroundColor: '#ef4444',
             transition: 'width 0.05s linear'
           }} />
         </div>
