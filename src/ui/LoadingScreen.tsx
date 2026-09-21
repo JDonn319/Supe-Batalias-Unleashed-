@@ -12,7 +12,7 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
     const interval = setInterval(() => {
       setProgress((prev) => {
         const next = prev + 1;
-        
+
         if (next === 25) setStatusText('КАЛИБРОВКА РЕПУЛЬСОРОВ...');
         if (next === 60) setStatusText('ПОДКЛЮЧЕНИЕ СИСТЕМ НАВЕДЕНИЯ...');
         if (next === 85) setStatusText('ЗАГРУЗКА БОРТОВОГО ИИ...');
@@ -42,29 +42,50 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
       overflow: 'hidden'
     }}>
       <style>{`
-        @keyframes pulseGlow {
-          0%, 100% { filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.4)); opacity: 0.85; }
-          50% { filter: drop-shadow(0 0 35px rgba(59, 130, 246, 0.9)); opacity: 1; }
+        @keyframes logoPulseGlow {
+          0%, 100% { filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.45)); }
+          50% { filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.95)); }
         }
       `}</style>
 
       <div style={{
+        position: 'relative',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: '50px',
-        animation: 'pulseGlow 2.5s infinite ease-in-out'
+        marginBottom: '60px',
+        animation: 'logoPulseGlow 3s infinite ease-in-out'
       }}>
         <img
           src="/logo.png"
-          alt="Iron Man Unleashed"
+          alt="Iron Man Unleashed Silhoette"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
           style={{
             maxWidth: '55vw',
             maxHeight: '35vh',
-            objectFit: 'contain'
+            objectFit: 'contain',
+            filter: 'grayscale(100%) brightness(20%)',
+            opacity: 0.6
+          }}
+        />
+
+        <img
+          src="/logo.png"
+          alt="Iron Man Unleashed Color"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            clipPath: `inset(0 0 ${100 - progress}% 0)`,
+            transition: 'clip-path 0.05s linear'
           }}
         />
       </div>
@@ -91,16 +112,14 @@ export default function LoadingScreen({ onLoaded }: LoadingScreenProps) {
         <div style={{
           width: '100%',
           height: '4px',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: '#1e293b',
           borderRadius: '2px',
-          overflow: 'hidden',
-          boxShadow: '0 0 10px rgba(0,0,0,0.8)'
+          overflow: 'hidden'
         }}>
           <div style={{
             width: `${progress}%`,
             height: '100%',
-            backgroundColor: '#ffffff',
-            boxShadow: '0 0 12px #38bdf8, 0 0 4px #ffffff',
+            backgroundColor: '#38bdf8',
             transition: 'width 0.05s linear'
           }} />
         </div>
