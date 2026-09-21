@@ -1,15 +1,23 @@
-import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Volume2, VolumeX, Globe } from 'lucide-react';
 import { sound } from '../app/audio';
 
 interface ModeSelectProps {
   onBack: () => void;
-  onSinglePlayer: () => void;
+  lang: 'ru' | 'en';
+  onToggleLang: () => void;
 }
 
-export default function ModeSelect({ onBack, onSinglePlayer }: ModeSelectProps) {
-  const handleSinglePlayer = () => {
-    sound.playClick();
-    onSinglePlayer();
+export default function ModeSelect({ onBack, lang, onToggleLang }: ModeSelectProps) {
+  const [muted, setMuted] = useState(sound.isMuted);
+  const [imageError, setImageError] = useState(false);
+
+  const toggleSound = () => {
+    sound.isMuted = !sound.isMuted;
+    setMuted(sound.isMuted);
+    if (!sound.isMuted) {
+      sound.playClick();
+    }
   };
 
   const handleAction = () => {
@@ -20,6 +28,14 @@ export default function ModeSelect({ onBack, onSinglePlayer }: ModeSelectProps) 
     sound.playClick();
     onBack();
   };
+
+  const handleLang = () => {
+    sound.playClick();
+    setImageError(false);
+    onToggleLang();
+  };
+
+  const modeImg = lang === 'ru' ? '/modechoose.png' : '/modechoose1.png';
 
   return (
     <div style={{
@@ -106,27 +122,111 @@ export default function ModeSelect({ onBack, onSinglePlayer }: ModeSelectProps) 
             padding: '7px 12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '1px',
+            justifyContent: 'center',
             cursor: 'pointer'
           }}
         >
-          <ArrowLeft size={16} />
-          <span>НАЗАД</span>
+          <ArrowLeft size={18} />
+        </button>
+      </div>
+
+      <div style={{
+        position: 'absolute',
+        top: '16px',
+        right: '24px',
+        display: 'flex',
+        gap: '10px',
+        zIndex: 10
+      }}>
+        <button
+          onClick={handleLang}
+          style={{
+            background: '#1a080a',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '0px',
+            color: '#ffffff',
+            padding: '7px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            fontWeight: 800,
+            cursor: 'pointer'
+          }}
+        >
+          <Globe size={16} />
+          <span>{lang.toUpperCase()}</span>
+        </button>
+
+        <button
+          onClick={toggleSound}
+          style={{
+            background: '#1a080a',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '0px',
+            color: '#ffffff',
+            padding: '7px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}
+        >
+          {muted ? <VolumeX size={18} color="#ef4444" /> : <Volume2 size={18} color="#ffffff" />}
         </button>
       </div>
 
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: 'translateY(1.5vh)',
         zIndex: 5
       }}>
-        <button className="menu-btn" onClick={handleAction}>СЮЖЕТ</button>
-        <button className="menu-btn" onClick={handleSinglePlayer}>ОДИНОЧНАЯ ИГРА</button>
-        <button className="menu-btn" onClick={handleAction}>МУЛЬТИПЛЕЕР</button>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '32px',
+          minHeight: '80px'
+        }}>
+          {!imageError ? (
+            <img
+              src={modeImg}
+              alt="Mode Choose"
+              onError={() => setImageError(true)}
+              style={{
+                maxWidth: '52vw',
+                maxHeight: '18vh',
+                objectFit: 'contain'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '80px',
+              height: '80px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 0 15px rgba(255, 255, 255, 0.4)'
+            }} />
+          )}
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px'
+        }}>
+          <button className="menu-btn" onClick={handleAction}>
+            {lang === 'ru' ? 'ОДИНОЧНЫЙ' : 'SINGLEPLAYER'}
+          </button>
+          <button className="menu-btn" onClick={handleAction}>
+            {lang === 'ru' ? 'МУЛЬТИПЛЕЕР' : 'MULTIPLAYER'}
+          </button>
+          <button className="menu-btn" onClick={handleAction}>
+            {lang === 'ru' ? 'СЦЕНАРИИ' : 'SCENARIOS'}
+          </button>
+        </div>
       </div>
 
       <div style={{
@@ -138,7 +238,7 @@ export default function ModeSelect({ onBack, onSinglePlayer }: ModeSelectProps) 
         letterSpacing: '2px',
         fontFamily: 'monospace'
       }}>
-        ALPHA v0.1.0
+        ALPHA v0.2.0
       </div>
     </div>
   );
