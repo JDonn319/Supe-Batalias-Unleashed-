@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ArrowLeft } from 'lucide-react';
 import Compass from './Compass';
 import Joystick from './Joystick';
@@ -35,8 +36,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x60a5fa);
-    scene.fog = new THREE.FogExp2(0x93c5fd, 0.012);
+    scene.background = new THREE.Color(0x93c5fd);
+    scene.fog = new THREE.FogExp2(0x93c5fd, 0.01);
 
     const camera = new THREE.PerspectiveCamera(
       55,
@@ -49,19 +50,22 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.3;
     mountRef.current.appendChild(renderer.domElement);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.9);
-    scene.add(hemiLight);
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    const sunLight = new THREE.DirectionalLight(0xffedd5, 1.9);
-    sunLight.position.set(50, 90, 40);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    sunLight.position.set(40, 80, 50);
     scene.add(sunLight);
 
     const skyGeo = new THREE.SphereGeometry(450, 32, 16);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x60a5fa,
+      color: 0x93c5fd,
       side: THREE.BackSide
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
@@ -69,25 +73,25 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     const createProceduralTexture = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
+      canvas.width = 256;
+      canvas.height = 256;
       const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(0, 0, 256, 256);
 
-      for (let i = 0; i < 7000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.1)';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      for (let i = 0; i < 3000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)';
+        ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
       }
 
-      ctx.strokeStyle = 'rgba(15,23,42,0.4)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(0, 0, 512, 512);
+      ctx.strokeStyle = 'rgba(30,41,59,0.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, 256, 256);
 
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(4, 4);
+      texture.repeat.set(40, 40);
       return texture;
     };
 
@@ -99,8 +103,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTexture,
-      roughness: 0.82,
-      metalness: 0.12
+      roughness: 0.8,
+      metalness: 0.1
     });
 
     textureLoader.load(
@@ -108,7 +112,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       (loadedTex) => {
         loadedTex.wrapS = THREE.RepeatWrapping;
         loadedTex.wrapT = THREE.RepeatWrapping;
-        loadedTex.repeat.set(4, 4);
+        loadedTex.repeat.set(40, 40);
         floorMat.map = loadedTex;
         floorMat.needsUpdate = true;
       },
@@ -159,36 +163,28 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     let mixer: THREE.AnimationMixer | null = null;
     let walkAction: THREE.AnimationAction | null = null;
 
-    const fallbackGeo = new THREE.CapsuleGeometry(0.35, 1.1, 8, 16);
+    const fallbackGeo = new THREE.CapsuleGeometry(0.4, 1.3, 8, 16);
     const fallbackMat = new THREE.MeshStandardMaterial({
-      color: 0x991b1b,
-      metalness: 0.85,
-      roughness: 0.25
+      color: 0xb91c1c,
+      metalness: 0.8,
+      roughness: 0.2
     });
     const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-    fallbackMesh.position.y = 0.9;
+    fallbackMesh.position.y = 1.05;
     suitPivot.add(fallbackMesh);
 
-    const reactorGeo = new THREE.SphereGeometry(0.09, 16, 16);
+    const reactorGeo = new THREE.SphereGeometry(0.1, 16, 16);
     const reactorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
     const reactorMesh = new THREE.Mesh(reactorGeo, reactorMat);
-    reactorMesh.position.set(0, 1.1, 0.35);
+    reactorMesh.position.set(0, 1.3, 0.4);
     suitPivot.add(reactorMesh);
 
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
 
-    let assetsReadyCount = 0;
-    const checkAssetsReady = () => {
-      assetsReadyCount++;
-      if (assetsReadyCount >= 2) {
-        setIsAssetsLoading(false);
-      }
-    };
-
     setTimeout(() => {
       setIsAssetsLoading(false);
-    }, 2000);
+    }, 1800);
 
     gltfLoader.load(
       '/models/suits/mark3.glb',
@@ -198,11 +194,23 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         const suitModel = suitGltf.scene;
 
+        suitModel.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const m = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            if (m) {
+              m.metalness = Math.min(m.metalness ?? 0.8, 0.85);
+              m.roughness = Math.max(m.roughness ?? 0.3, 0.25);
+              m.envMapIntensity = 2.0;
+              m.needsUpdate = true;
+            }
+          }
+        });
+
         const box = new THREE.Box3().setFromObject(suitModel);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
 
-        const targetHeight = 1.8;
+        const targetHeight = 2.1;
         const scaleFactor = targetHeight / (size.y || 1);
         suitModel.scale.setScalar(scaleFactor);
 
@@ -210,55 +218,51 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         suitModel.position.y = -box.min.y * scaleFactor;
         suitModel.position.z = -center.z * scaleFactor;
 
-        suitPivot.rotation.y = Math.PI;
+        suitPivot.rotation.y = -Math.PI / 2;
         suitPivot.add(suitModel);
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        if (suitGltf.animations && suitGltf.animations.length > 0) {
-          walkAction = mixer.clipAction(suitGltf.animations[0]);
-          checkAssetsReady();
-        } else {
-          fbxLoader.load(
-            '/models/animations/walk.fbx',
-            (animFbx) => {
-              if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
-                const clip = animFbx.animations[0];
+        fbxLoader.load(
+          '/models/animations/walk.fbx',
+          (animFbx) => {
+            if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
+              const clip = animFbx.animations[0];
 
-                const boneNames = new Map<string, string>();
-                suitModel.traverse((child) => {
-                  if (child instanceof THREE.Bone) {
-                    const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    boneNames.set(clean, child.name);
-                  }
-                });
+              const boneNames = new Map<string, string>();
+              suitModel.traverse((child) => {
+                if (child instanceof THREE.Bone) {
+                  const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  boneNames.set(clean, child.name);
+                }
+              });
 
-                clip.tracks.forEach((track) => {
-                  const parts = track.name.split('.');
-                  const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-                  if (boneNames.has(cleanTrack)) {
-                    track.name = `${boneNames.get(cleanTrack)}.${parts[1]}`;
-                  }
-                });
+              clip.tracks.forEach((track) => {
+                const parts = track.name.split('.');
+                const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (boneNames.has(cleanTrack)) {
+                  track.name = `${boneNames.get(cleanTrack)}.${parts[1]}`;
+                }
+              });
 
-                walkAction = mixer.clipAction(clip);
-              }
-              checkAssetsReady();
-            },
-            undefined,
-            () => checkAssetsReady()
-          );
-        }
-        checkAssetsReady();
+              walkAction = mixer.clipAction(clip);
+              walkAction.setLoop(THREE.LoopRepeat, Infinity);
+            }
+            setIsAssetsLoading(false);
+          },
+          undefined,
+          () => {
+            setIsAssetsLoading(false);
+          }
+        );
       },
       undefined,
       () => {
-        checkAssetsReady();
-        checkAssetsReady();
+        setIsAssetsLoading(false);
       }
     );
 
-    const beaconGeo = new THREE.CylinderGeometry(0.15, 0.15, 120, 8);
+    const beaconGeo = new THREE.CylinderGeometry(0.2, 0.2, 120, 8);
     const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.7 });
     const beacon = new THREE.Mesh(beaconGeo, beaconMat);
     beacon.position.set(questPos[0], 60, questPos[1]);
@@ -267,7 +271,6 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     let lastTime = performance.now();
     let currentSpeed = 0;
     let currentTilt = 0;
-    let walkCycle = 0;
     let animFrameId: number;
 
     const animate = () => {
@@ -279,8 +282,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       const input = moveVectorRef.current;
       const isInputActive = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
 
-      const targetSpeed = isInputActive ? 8.5 : 0;
-      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 9);
+      const targetSpeed = isInputActive ? 8.0 : 0;
+      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 10);
 
       const camYaw = cameraAnglesRef.current.yaw;
       playerGroup.rotation.y = camYaw;
@@ -297,9 +300,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         playerGroup.position.x += moveDirX * currentSpeed * delta;
         playerGroup.position.z += moveDirZ * currentSpeed * delta;
 
-        walkCycle += delta * currentSpeed * 1.5;
-
-        const targetTilt = THREE.MathUtils.clamp(-input.x * 0.18, -0.2, 0.2);
+        const targetTilt = THREE.MathUtils.clamp(-input.x * 0.12, -0.15, 0.15);
         currentTilt = THREE.MathUtils.lerp(currentTilt, targetTilt, delta * 8);
 
         if (walkAction && !walkAction.isRunning()) {
@@ -314,19 +315,14 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
       visualModelGroup.rotation.z = currentTilt;
 
-      const bounceY = Math.abs(Math.sin(walkCycle * 2.2)) * 0.05 * (currentSpeed / 8.5);
-      const swayRoll = Math.sin(walkCycle) * 0.03 * (currentSpeed / 8.5);
-      visualModelGroup.position.y = bounceY;
-      visualModelGroup.rotation.y = swayRoll;
-
       if (mixer) {
         mixer.update(delta);
       }
 
       const camPitch = cameraAnglesRef.current.pitch;
-      const camDist = 2.8;
-      const shoulderX = 0.65;
-      const shoulderY = 1.65;
+      const camDist = 2.4;
+      const shoulderX = 0.55;
+      const shoulderY = 1.75;
 
       const cosPitch = Math.cos(camPitch);
       const sinPitch = Math.sin(camPitch);
@@ -339,9 +335,9 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       camera.position.y = playerGroup.position.y + offsetY;
       camera.position.z = playerGroup.position.z + offsetZ;
 
-      const lookTargetX = playerGroup.position.x + rightX * (shoulderX * 0.7);
+      const lookTargetX = playerGroup.position.x + rightX * (shoulderX * 0.6);
       const lookTargetY = playerGroup.position.y + shoulderY * 0.95;
-      const lookTargetZ = playerGroup.position.z + rightZ * (shoulderX * 0.7);
+      const lookTargetZ = playerGroup.position.z + rightZ * (shoulderX * 0.6);
 
       camera.lookAt(lookTargetX, lookTargetY, lookTargetZ);
 
@@ -370,6 +366,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       cancelAnimationFrame(animFrameId);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
+      pmremGenerator.dispose();
       if (mountRef.current) {
         mountRef.current.innerHTML = '';
       }
@@ -394,8 +391,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         cameraAnglesRef.current.yaw -= dx * 0.0055;
         cameraAnglesRef.current.pitch = THREE.MathUtils.clamp(
           cameraAnglesRef.current.pitch + dy * 0.0035,
-          -0.25,
-          0.55
+          -0.2,
+          0.5
         );
         break;
       }
