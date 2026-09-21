@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { sound } from '../app/audio';
 
 interface MainMenuProps {
@@ -112,14 +113,14 @@ export default function MainMenu({ onStartGame }: MainMenuProps) {
             border: '1px solid rgba(239, 68, 68, 0.35)',
             borderRadius: '0px',
             color: '#ffffff',
-            padding: '6px 14px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '1px',
+            padding: '7px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             cursor: 'pointer'
           }}
         >
-          {muted ? 'MUTE' : 'SOUND'}
+          {muted ? <VolumeX size={18} color="#ef4444" /> : <Volume2 size={18} color="#ffffff" />}
         </button>
       </div>
 
