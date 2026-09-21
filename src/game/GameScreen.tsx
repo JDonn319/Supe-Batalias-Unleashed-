@@ -19,6 +19,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const moveVectorRef = useRef({ x: 0, y: 0 });
   const [isAssetsLoading, setIsAssetsLoading] = useState(true);
+  const [debugLog, setDebugLog] = useState('Диагностика систем...');
 
   const [hudData, setHudData] = useState({
     rotation: 0,
@@ -36,8 +37,8 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x93c5fd);
-    scene.fog = new THREE.FogExp2(0x93c5fd, 0.01);
+    scene.background = new THREE.Color(0x7dd3fc);
+    scene.fog = new THREE.FogExp2(0xbae6fd, 0.008);
 
     const camera = new THREE.PerspectiveCamera(
       55,
@@ -50,22 +51,22 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.toneMappingExposure = 1.05;
     mountRef.current.appendChild(renderer.domElement);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const sunLight = new THREE.DirectionalLight(0xfff7ed, 1.6);
     sunLight.position.set(40, 80, 50);
     scene.add(sunLight);
 
     const skyGeo = new THREE.SphereGeometry(450, 32, 16);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x93c5fd,
+      color: 0x7dd3fc,
       side: THREE.BackSide
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
@@ -73,25 +74,34 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     const createProceduralTexture = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 256;
+      canvas.width = 512;
+      canvas.height = 512;
       const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(0, 0, 256, 256);
 
-      for (let i = 0; i < 3000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)';
-        ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+      ctx.fillStyle = '#374151';
+      ctx.fillRect(0, 0, 512, 512);
+
+      const slab = 256;
+      for (let x = 0; x < 512; x += slab) {
+        for (let y = 0; y < 512; y += slab) {
+          ctx.fillStyle = (x + y) % (slab * 2) === 0 ? '#475569' : '#334155';
+          ctx.fillRect(x + 3, y + 3, slab - 6, slab - 6);
+
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 6;
+          ctx.strokeRect(x, y, slab, slab);
+        }
       }
 
-      ctx.strokeStyle = 'rgba(30,41,59,0.35)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, 256, 256);
+      for (let i = 0; i < 4000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+      }
 
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(40, 40);
+      texture.repeat.set(10, 10);
       return texture;
     };
 
@@ -103,7 +113,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTexture,
-      roughness: 0.8,
+      roughness: 0.85,
       metalness: 0.1
     });
 
@@ -112,7 +122,7 @@ export default function GameScreen({ onBack }: GameScreenProps) {
       (loadedTex) => {
         loadedTex.wrapS = THREE.RepeatWrapping;
         loadedTex.wrapT = THREE.RepeatWrapping;
-        loadedTex.repeat.set(40, 40);
+        loadedTex.repeat.set(10, 10);
         floorMat.map = loadedTex;
         floorMat.needsUpdate = true;
       },
@@ -163,38 +173,22 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     let mixer: THREE.AnimationMixer | null = null;
     let walkAction: THREE.AnimationAction | null = null;
 
-    const fallbackGeo = new THREE.CapsuleGeometry(0.4, 1.3, 8, 16);
-    const fallbackMat = new THREE.MeshStandardMaterial({
-      color: 0xb91c1c,
-      metalness: 0.8,
-      roughness: 0.2
-    });
-    const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-    fallbackMesh.position.y = 1.05;
-    suitPivot.add(fallbackMesh);
-
-    const reactorGeo = new THREE.SphereGeometry(0.1, 16, 16);
-    const reactorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const reactorMesh = new THREE.Mesh(reactorGeo, reactorMat);
-    reactorMesh.position.set(0, 1.3, 0.4);
-    suitPivot.add(reactorMesh);
-
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
-
-    setTimeout(() => {
-      setIsAssetsLoading(false);
-    }, 1800);
 
     gltfLoader.load(
       '/models/suits/mark3.glb',
       (suitGltf) => {
-        suitPivot.remove(fallbackMesh);
-        suitPivot.remove(reactorMesh);
-
         const suitModel = suitGltf.scene;
 
+        let totalBones = 0;
+        const boneMap = new Map<string, string>();
         suitModel.traverse((child) => {
+          if ((child as THREE.Bone).isBone) {
+            totalBones++;
+            const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            boneMap.set(clean, child.name);
+          }
           if ((child as THREE.Mesh).isMesh) {
             const m = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
             if (m) {
@@ -223,41 +217,47 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        fbxLoader.load(
-          '/models/animations/walk.fbx',
-          (animFbx) => {
-            if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
-              const clip = animFbx.animations[0];
+        if (suitGltf.animations && suitGltf.animations.length > 0) {
+          walkAction = mixer.clipAction(suitGltf.animations[0]);
+          walkAction.setLoop(THREE.LoopRepeat, Infinity);
+          setDebugLog(`Костей: ${totalBones} | Анимация из модели`);
+          setIsAssetsLoading(false);
+        } else {
+          fbxLoader.load(
+            '/models/animations/walk.fbx',
+            (animFbx) => {
+              if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
+                const clip = animFbx.animations[0];
+                let matchedTracks = 0;
 
-              const boneNames = new Map<string, string>();
-              suitModel.traverse((child) => {
-                if (child instanceof THREE.Bone) {
-                  const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                  boneNames.set(clean, child.name);
-                }
-              });
+                clip.tracks.forEach((track) => {
+                  const parts = track.name.split('.');
+                  const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+                  if (boneMap.has(cleanTrack)) {
+                    track.name = `${boneMap.get(cleanTrack)}.${parts[1]}`;
+                    matchedTracks++;
+                  }
+                });
 
-              clip.tracks.forEach((track) => {
-                const parts = track.name.split('.');
-                const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (boneNames.has(cleanTrack)) {
-                  track.name = `${boneNames.get(cleanTrack)}.${parts[1]}`;
-                }
-              });
-
-              walkAction = mixer.clipAction(clip);
-              walkAction.setLoop(THREE.LoopRepeat, Infinity);
+                walkAction = mixer.clipAction(clip);
+                walkAction.setLoop(THREE.LoopRepeat, Infinity);
+                setDebugLog(`Костей: ${totalBones} | FBX связан (${matchedTracks} треков)`);
+              } else {
+                setDebugLog(`Костей: ${totalBones} | В FBX нет треков`);
+              }
+              setIsAssetsLoading(false);
+            },
+            undefined,
+            () => {
+              setDebugLog(`Костей: ${totalBones} | Файл walk.fbx не найден (404)`);
+              setIsAssetsLoading(false);
             }
-            setIsAssetsLoading(false);
-          },
-          undefined,
-          () => {
-            setIsAssetsLoading(false);
-          }
-        );
+          );
+        }
       },
       undefined,
       () => {
+        setDebugLog('Ошибка: mark3.glb не найден');
         setIsAssetsLoading(false);
       }
     );
@@ -270,7 +270,6 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
     let lastTime = performance.now();
     let currentSpeed = 0;
-    let currentTilt = 0;
     let animFrameId: number;
 
     const animate = () => {
@@ -300,20 +299,14 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         playerGroup.position.x += moveDirX * currentSpeed * delta;
         playerGroup.position.z += moveDirZ * currentSpeed * delta;
 
-        const targetTilt = THREE.MathUtils.clamp(-input.x * 0.12, -0.15, 0.15);
-        currentTilt = THREE.MathUtils.lerp(currentTilt, targetTilt, delta * 8);
-
         if (walkAction && !walkAction.isRunning()) {
           walkAction.play();
         }
       } else {
-        currentTilt = THREE.MathUtils.lerp(currentTilt, 0, delta * 8);
         if (walkAction && walkAction.isRunning()) {
           walkAction.stop();
         }
       }
-
-      visualModelGroup.rotation.z = currentTilt;
 
       if (mixer) {
         mixer.update(delta);
@@ -477,6 +470,24 @@ export default function GameScreen({ onBack }: GameScreenProps) {
           border: '1px solid #ffffff',
           boxShadow: '0 0 6px #ef4444'
         }} />
+      </div>
+
+      <div style={{
+        position: 'absolute',
+        bottom: '12px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: '4px 12px',
+        borderRadius: '4px',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        color: '#38bdf8',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        pointerEvents: 'none',
+        zIndex: 25
+      }}>
+        {debugLog}
       </div>
 
       <Compass
