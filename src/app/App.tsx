@@ -1,5 +1,3 @@
-Эпп 
-
 import { useState, useEffect } from 'react';
 import OrientationBlocker from '../ui/OrientationBlocker';
 import LoadingScreen from '../ui/LoadingScreen';
