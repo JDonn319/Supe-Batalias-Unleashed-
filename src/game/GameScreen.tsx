@@ -176,6 +176,14 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
 
+    const normalizeBone = (str: string) => {
+      return str
+        .toLowerCase()
+        .replace(/^.*[|/:]/, '')
+        .replace(/mixamorig\d*/g, '')
+        .replace(/[^a-z0-9]/g, '');
+    };
+
     gltfLoader.load(
       '/models/suits/mark3.glb',
       (suitGltf) => {
@@ -183,10 +191,13 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         let totalBones = 0;
         const boneMap = new Map<string, string>();
+        let firstBoneName = '';
+
         suitModel.traverse((child) => {
           if ((child as THREE.Bone).isBone) {
             totalBones++;
-            const clean = child.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!firstBoneName) firstBoneName = child.name;
+            const clean = normalizeBone(child.name);
             boneMap.set(clean, child.name);
           }
           if ((child as THREE.Mesh).isMesh) {
@@ -217,43 +228,46 @@ export default function GameScreen({ onBack }: GameScreenProps) {
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        if (suitGltf.animations && suitGltf.animations.length > 0) {
-          walkAction = mixer.clipAction(suitGltf.animations[0]);
-          walkAction.setLoop(THREE.LoopRepeat, Infinity);
-          setDebugLog(`Костей: ${totalBones} | Анимация из модели`);
-          setIsAssetsLoading(false);
-        } else {
-          fbxLoader.load(
-            '/models/animations/walk.fbx',
-            (animFbx) => {
-              if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
-                const clip = animFbx.animations[0];
-                let matchedTracks = 0;
+        fbxLoader.load(
+          '/models/animations/walk.fbx',
+          (animFbx) => {
+            if (animFbx.animations && animFbx.animations.length > 0 && mixer) {
+              const clip = animFbx.animations[0];
+              let matchedTracks = 0;
+              const sampleFbx = clip.tracks[0]?.name || '';
 
-                clip.tracks.forEach((track) => {
-                  const parts = track.name.split('.');
-                  const cleanTrack = parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-                  if (boneMap.has(cleanTrack)) {
-                    track.name = `${boneMap.get(cleanTrack)}.${parts[1]}`;
-                    matchedTracks++;
-                  }
-                });
+              clip.tracks.forEach((track) => {
+                const lastDot = track.name.lastIndexOf('.');
+                const bonePath = track.name.substring(0, lastDot);
+                const property = track.name.substring(lastDot + 1);
 
+                const cleanTrack = normalizeBone(bonePath);
+
+                if (boneMap.has(cleanTrack)) {
+                  const targetName = boneMap.get(cleanTrack)!;
+                  track.name = `${targetName}.${property}`;
+                  matchedTracks++;
+                }
+              });
+
+              if (matchedTracks > 0) {
                 walkAction = mixer.clipAction(clip);
                 walkAction.setLoop(THREE.LoopRepeat, Infinity);
-                setDebugLog(`Костей: ${totalBones} | FBX связан (${matchedTracks} треков)`);
+                setDebugLog(`Костей: ${totalBones} | Связано: ${matchedTracks} (АНИМАЦИЯ ГОТОВА)`);
               } else {
-                setDebugLog(`Костей: ${totalBones} | В FBX нет треков`);
+                setDebugLog(`0 треков | FBX: "${sampleFbx.slice(0, 16)}" | Кость: "${firstBoneName.slice(0, 16)}"`);
               }
-              setIsAssetsLoading(false);
-            },
-            undefined,
-            () => {
-              setDebugLog(`Костей: ${totalBones} | Файл walk.fbx не найден (404)`);
-              setIsAssetsLoading(false);
+            } else {
+              setDebugLog(`Костей: ${totalBones} | В walk.fbx нет анимации`);
             }
-          );
-        }
+            setIsAssetsLoading(false);
+          },
+          undefined,
+          () => {
+            setDebugLog(`Костей: ${totalBones} | Файл walk.fbx не найден (404)`);
+            setIsAssetsLoading(false);
+          }
+        );
       },
       undefined,
       () => {
@@ -299,12 +313,15 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         playerGroup.position.x += moveDirX * currentSpeed * delta;
         playerGroup.position.z += moveDirZ * currentSpeed * delta;
 
-        if (walkAction && !walkAction.isRunning()) {
-          walkAction.play();
+        if (walkAction) {
+          if (!walkAction.isRunning()) {
+            walkAction.reset().play();
+          }
+          walkAction.timeScale = 1.0;
         }
       } else {
         if (walkAction && walkAction.isRunning()) {
-          walkAction.stop();
+          walkAction.timeScale = 0;
         }
       }
 
@@ -477,10 +494,10 @@ export default function GameScreen({ onBack }: GameScreenProps) {
         bottom: '12px',
         left: '50%',
         transform: 'translateX(-50%)',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        padding: '4px 12px',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        padding: '5px 14px',
         borderRadius: '4px',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+        border: '1px solid rgba(255, 255, 255, 0.25)',
         color: '#38bdf8',
         fontFamily: 'monospace',
         fontSize: '11px',
