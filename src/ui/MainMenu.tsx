@@ -3,7 +3,15 @@ import { useState } from 'react';
 export default function MainMenu() {
   const [isMuted, setIsMuted] = useState(false);
 
-  const handleAction = () => {};
+  const playClickSound = () => {
+    if (isMuted) return;
+    const sound = new Audio('/click.mp3');
+    sound.play().catch(() => {});
+  };
+
+  const handleAction = () => {
+    playClickSound();
+  };
 
   return (
     <div style={{
@@ -13,14 +21,14 @@ export default function MainMenu() {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      backgroundColor: '#020408',
-      background: 'radial-gradient(circle at center, #0b1329 0%, #000000 100%)',
+      backgroundColor: '#050203',
+      background: 'radial-gradient(circle at center, #1c080b 0%, #000000 100%)',
       overflow: 'hidden'
     }}>
       <style>{`
         @keyframes logoMenuGlow {
-          0%, 100% { filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.4)); }
-          50% { filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.85)); }
+          0%, 100% { filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.45)); }
+          50% { filter: drop-shadow(0 0 50px rgba(239, 68, 68, 0.9)); }
         }
 
         @keyframes glitchFlicker {
@@ -37,19 +45,19 @@ export default function MainMenu() {
         .menu-btn {
           width: 540px;
           max-width: 82vw;
-          height: 48px;
-          border-radius: 4px;
-          border: 1px solid rgba(255, 255, 255, 0.25);
+          height: 38px;
+          border-radius: 0px;
+          border: 1px solid rgba(239, 68, 68, 0.35);
           color: #ffffff;
           font-family: sans-serif;
           font-weight: 800;
-          font-size: 15px;
+          font-size: 14px;
           letter-spacing: 4px;
           text-transform: uppercase;
           cursor: pointer;
           outline: none;
           position: relative;
-          background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+          background: linear-gradient(180deg, #240e11 0%, #120507 100%);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -72,8 +80,8 @@ export default function MainMenu() {
         }
 
         .menu-btn:hover, .menu-btn:active {
-          background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
-          border-color: #38bdf8;
+          background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+          border-color: #ef4444;
           color: #ffffff;
         }
       `}</style>
@@ -85,11 +93,17 @@ export default function MainMenu() {
         zIndex: 10
       }}>
         <button
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={() => {
+            setIsMuted(!isMuted);
+            if (isMuted) {
+              const sound = new Audio('/click.mp3');
+              sound.play().catch(() => {});
+            }
+          }}
           style={{
-            background: '#0f172a',
-            border: '1px solid rgba(148, 163, 184, 0.3)',
-            borderRadius: '4px',
+            background: '#1a080a',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '0px',
             color: '#ffffff',
             padding: '6px 14px',
             fontSize: '11px',
@@ -103,7 +117,7 @@ export default function MainMenu() {
       </div>
 
       <div style={{
-        marginTop: '3vh',
+        marginTop: '7vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -117,18 +131,18 @@ export default function MainMenu() {
             e.currentTarget.style.display = 'none';
           }}
           style={{
-            maxWidth: '46vw',
-            maxHeight: '26vh',
+            maxWidth: '58vw',
+            maxHeight: '34vh',
             objectFit: 'contain'
           }}
         />
       </div>
 
       <div style={{
-        marginTop: '4vh',
+        marginTop: '6vh',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '12px',
         zIndex: 5
       }}>
         <button className="menu-btn" onClick={handleAction}>НАЧАТЬ</button>
