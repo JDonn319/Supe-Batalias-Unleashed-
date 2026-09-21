@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
@@ -17,10 +17,16 @@ const CHUNK_RADIUS = 3;
 export default function GameScreen({ onBack }: GameScreenProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const moveVectorRef = useRef({ x: 0, y: 0 });
+  const [isAssetsLoading, setIsAssetsLoading] = useState(true);
+
   const [hudData, setHudData] = useState({
     rotation: 0,
     playerPos: [0, 0] as [number, number],
   });
+
+  const cameraAnglesRef = useRef({ yaw: 0, pitch: 0.15 });
+  const touchRightIdRef = useRef<number | null>(null);
+  const lastTouchRef = useRef({ x: 0, y: 0 });
 
   const spawnPos: [number, number] = [0, 0];
   const questPos: [number, number] = [160, -220];
@@ -29,47 +35,85 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0406);
-    scene.fog = new THREE.FogExp2(0x0a0406, 0.016);
+    scene.background = new THREE.Color(0x38bdf8);
+    scene.fog = new THREE.FogExp2(0xb0c4de, 0.012);
 
     const camera = new THREE.PerspectiveCamera(
       55,
       window.innerWidth / window.innerHeight,
       0.1,
-      500
+      600
     );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
     mountRef.current.appendChild(renderer.domElement);
 
-    const hemiLight = new THREE.HemisphereLight(0xffebee, 0x1a0508, 0.7);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x334155, 0.85);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(30, 60, 30);
-    scene.add(dirLight);
+    const sunLight = new THREE.DirectionalLight(0xfff7ed, 1.8);
+    sunLight.position.set(60, 100, 40);
+    scene.add(sunLight);
+
+    const skyGeo = new THREE.SphereGeometry(400, 32, 16);
+    const skyMat = new THREE.MeshBasicMaterial({
+      color: 0x93c5fd,
+      side: THREE.BackSide
+    });
+    const skyDome = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(skyDome);
+
+    const createProceduralTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(0, 0, 512, 512);
+
+      for (let i = 0; i < 6000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      }
+
+      ctx.strokeStyle = 'rgba(15,23,42,0.3)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, 512, 512);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(4, 4);
+      return texture;
+    };
 
     const textureLoader = new THREE.TextureLoader();
-    const concreteTexture = textureLoader.load(
+    let floorTexture = createProceduralTexture();
+
+    textureLoader.load(
       '/textures/concrete.jpg',
-      () => {},
+      (loadedTex) => {
+        loadedTex.wrapS = THREE.RepeatWrapping;
+        loadedTex.wrapT = THREE.RepeatWrapping;
+        loadedTex.repeat.set(4, 4);
+        floorMat.map = loadedTex;
+        floorMat.needsUpdate = true;
+      },
       undefined,
       () => {}
     );
-    concreteTexture.wrapS = THREE.RepeatWrapping;
-    concreteTexture.wrapT = THREE.RepeatWrapping;
-    concreteTexture.repeat.set(4, 4);
 
     const floorGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
     floorGeo.rotateX(-Math.PI / 2);
 
     const floorMat = new THREE.MeshStandardMaterial({
-      map: concreteTexture,
-      color: 0x333333,
-      roughness: 0.85,
-      metalness: 0.1
+      map: floorTexture,
+      roughness: 0.8,
+      metalness: 0.15
     });
 
     const chunks = new Map<string, THREE.Mesh>();
@@ -106,99 +150,168 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     const playerGroup = new THREE.Group();
     scene.add(playerGroup);
 
+    const visualModelGroup = new THREE.Group();
+    playerGroup.add(visualModelGroup);
+
     let mixer: THREE.AnimationMixer | null = null;
     let walkAction: THREE.AnimationAction | null = null;
 
-    const fallbackGeo = new THREE.CapsuleGeometry(0.5, 1.2, 8, 16);
+    const fallbackGeo = new THREE.CapsuleGeometry(0.45, 1.1, 8, 16);
     const fallbackMat = new THREE.MeshStandardMaterial({
       color: 0x991b1b,
-      metalness: 0.8,
-      roughness: 0.3
+      metalness: 0.85,
+      roughness: 0.25
     });
     const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-    fallbackMesh.position.y = 1.1;
-    playerGroup.add(fallbackMesh);
+    fallbackMesh.position.y = 1.0;
+    visualModelGroup.add(fallbackMesh);
 
     const reactorGeo = new THREE.SphereGeometry(0.12, 16, 16);
     const reactorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
     const reactorMesh = new THREE.Mesh(reactorGeo, reactorMat);
-    reactorMesh.position.set(0, 1.3, 0.45);
-    playerGroup.add(reactorMesh);
+    reactorMesh.position.set(0, 1.25, 0.42);
+    visualModelGroup.add(reactorMesh);
 
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
 
+    let assetsReadyCount = 0;
+    const checkAssetsReady = () => {
+      assetsReadyCount++;
+      if (assetsReadyCount >= 2) {
+        setIsAssetsLoading(false);
+      }
+    };
+
+    setTimeout(() => {
+      setIsAssetsLoading(false);
+    }, 2500);
+
     gltfLoader.load(
       '/models/suits/mark3.glb',
       (suitGltf) => {
-        playerGroup.remove(fallbackMesh);
-        playerGroup.remove(reactorMesh);
+        visualModelGroup.remove(fallbackMesh);
+        visualModelGroup.remove(reactorMesh);
         const suitModel = suitGltf.scene;
-        suitModel.scale.set(1.2, 1.2, 1.2);
-        playerGroup.add(suitModel);
+        suitModel.scale.set(1.1, 1.1, 1.1);
+        visualModelGroup.add(suitModel);
 
         mixer = new THREE.AnimationMixer(suitModel);
 
-        fbxLoader.load(
-          '/models/animations/walk.fbx',
-          (animFbx) => {
-            if (animFbx.animations.length > 0 && mixer) {
-              const clip = animFbx.animations[0];
-              walkAction = mixer.clipAction(clip);
-            }
-          },
-          undefined,
-          () => {}
-        );
+        if (suitGltf.animations && suitGltf.animations.length > 0) {
+          walkAction = mixer.clipAction(suitGltf.animations[0]);
+          checkAssetsReady();
+        } else {
+          fbxLoader.load(
+            '/models/animations/walk.fbx',
+            (animFbx) => {
+              if (animFbx.animations.length > 0 && mixer) {
+                const clip = animFbx.animations[0];
+                walkAction = mixer.clipAction(clip);
+              }
+              checkAssetsReady();
+            },
+            undefined,
+            () => checkAssetsReady()
+          );
+        }
+        checkAssetsReady();
       },
       undefined,
-      () => {}
+      () => {
+        checkAssetsReady();
+        checkAssetsReady();
+      }
     );
 
-    const questBeaconGeo = new THREE.CylinderGeometry(0.1, 0.1, 100, 8);
-    const questBeaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.6 });
-    const beacon = new THREE.Mesh(questBeaconGeo, questBeaconMat);
-    beacon.position.set(questPos[0], 50, questPos[1]);
+    const beaconGeo = new THREE.CylinderGeometry(0.15, 0.15, 120, 8);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.7 });
+    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+    beacon.position.set(questPos[0], 60, questPos[1]);
     scene.add(beacon);
 
     let lastTime = performance.now();
+    let currentSpeed = 0;
+    let currentTilt = 0;
     let animFrameId: number;
 
     const animate = () => {
       animFrameId = requestAnimationFrame(animate);
       const currentTime = performance.now();
-      const delta = (currentTime - lastTime) / 1000;
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
 
       const input = moveVectorRef.current;
-      const isMoving = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
+      const isInputActive = Math.abs(input.x) > 0.05 || Math.abs(input.y) > 0.05;
 
-      if (isMoving) {
-        const speed = 12 * delta;
-        playerGroup.position.x += input.x * speed;
-        playerGroup.position.z += input.y * speed;
+      const targetSpeed = isInputActive ? 11 : 0;
+      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, delta * 8);
 
-        const targetAngle = Math.atan2(input.x, input.y);
-        playerGroup.rotation.y = targetAngle;
+      const camYaw = cameraAnglesRef.current.yaw;
+      const forwardX = -Math.sin(camYaw);
+      const forwardZ = -Math.cos(camYaw);
+      const rightX = Math.cos(camYaw);
+      const rightZ = -Math.sin(camYaw);
+
+      if (currentSpeed > 0.1) {
+        const moveDirX = rightX * input.x + forwardX * (-input.y);
+        const moveDirZ = rightZ * input.x + forwardZ * (-input.y);
+
+        playerGroup.position.x += moveDirX * currentSpeed * delta;
+        playerGroup.position.z += moveDirZ * currentSpeed * delta;
+
+        const targetRotY = Math.atan2(moveDirX, moveDirZ);
+        let rotDiff = targetRotY - playerGroup.rotation.y;
+        while (rotDiff > Math.PI) rotDiff -= 2 * Math.PI;
+        while (rotDiff < -Math.PI) rotDiff += 2 * Math.PI;
+
+        playerGroup.rotation.y += rotDiff * delta * 12;
+
+        const targetTilt = THREE.MathUtils.clamp(-rotDiff * 0.4, -0.25, 0.25);
+        currentTilt = THREE.MathUtils.lerp(currentTilt, targetTilt, delta * 6);
 
         if (walkAction && !walkAction.isRunning()) {
           walkAction.play();
         }
       } else {
+        currentTilt = THREE.MathUtils.lerp(currentTilt, 0, delta * 8);
         if (walkAction && walkAction.isRunning()) {
           walkAction.stop();
         }
+      }
+
+      visualModelGroup.rotation.z = currentTilt;
+
+      if (!walkAction && currentSpeed > 0.5) {
+        visualModelGroup.position.y = Math.sin(currentTime * 0.012) * 0.06;
+      } else if (!walkAction) {
+        visualModelGroup.position.y = THREE.MathUtils.lerp(visualModelGroup.position.y, 0, delta * 10);
       }
 
       if (mixer) {
         mixer.update(delta);
       }
 
-      camera.position.x = playerGroup.position.x;
-      camera.position.y = playerGroup.position.y + 6;
-      camera.position.z = playerGroup.position.z + 10;
-      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+      const camPitch = cameraAnglesRef.current.pitch;
+      const camDist = 4.2;
+      const shoulderX = 0.9;
+      const shoulderY = 1.7;
 
+      const offsetX = rightX * shoulderX + Math.sin(camYaw) * (camDist * Math.cos(camPitch));
+      const offsetY = shoulderY + Math.sin(camPitch) * camDist;
+      const offsetZ = rightZ * shoulderX + Math.cos(camYaw) * (camDist * Math.cos(camPitch));
+
+      camera.position.x = playerGroup.position.x + offsetX;
+      camera.position.y = playerGroup.position.y + offsetY;
+      camera.position.z = playerGroup.position.z + offsetZ;
+
+      const lookTargetX = playerGroup.position.x + rightX * (shoulderX * 0.5);
+      const lookTargetY = playerGroup.position.y + shoulderY * 0.9;
+      const lookTargetZ = playerGroup.position.z + rightZ * (shoulderX * 0.5);
+
+      camera.lookAt(lookTargetX, lookTargetY, lookTargetZ);
+
+      skyDome.position.copy(playerGroup.position);
       updateChunks(playerGroup.position.x, playerGroup.position.z);
 
       setHudData({
@@ -229,9 +342,111 @@ export default function GameScreen({ onBack }: GameScreenProps) {
     };
   }, []);
 
+  const handleTouchStartRight = (e: React.TouchEvent) => {
+    if (touchRightIdRef.current !== null) return;
+    const touch = e.changedTouches[0];
+    touchRightIdRef.current = touch.identifier;
+    lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchMoveRight = (e: React.TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === touchRightIdRef.current) {
+        const dx = touch.clientX - lastTouchRef.current.x;
+        const dy = touch.clientY - lastTouchRef.current.y;
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+
+        cameraAnglesRef.current.yaw -= dx * 0.006;
+        cameraAnglesRef.current.pitch = THREE.MathUtils.clamp(
+          cameraAnglesRef.current.pitch + dy * 0.004,
+          -0.2,
+          0.65
+        );
+        break;
+      }
+    }
+  };
+
+  const handleTouchEndRight = (e: React.TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchRightIdRef.current) {
+        touchRightIdRef.current = null;
+        break;
+      }
+    }
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+
+      {isAssetsLoading && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: '#050203',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100
+        }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            border: '3px solid #22080a',
+            borderTop: '3px solid #ef4444',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            marginBottom: '20px'
+          }} />
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <span style={{
+            color: '#ef4444',
+            fontFamily: 'sans-serif',
+            fontSize: '12px',
+            fontWeight: 800,
+            letterSpacing: '3px'
+          }}>
+            КАЛИБРОВКА СИСТЕМ КОСТЮМА...
+          </span>
+        </div>
+      )}
+
+      <div
+        onTouchStart={handleTouchStartRight}
+        onTouchMove={handleTouchMoveRight}
+        onTouchEnd={handleTouchEndRight}
+        onTouchCancel={handleTouchEndRight}
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '55%',
+          height: '100%',
+          touchAction: 'none',
+          zIndex: 10
+        }}
+      />
+
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        zIndex: 15
+      }}>
+        <div style={{
+          width: '6px',
+          height: '6px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(239, 68, 68, 0.75)',
+          border: '1px solid rgba(255, 255, 255, 0.9)',
+          boxShadow: '0 0 6px #ef4444'
+        }} />
+      </div>
 
       <Compass
         playerRotation={hudData.rotation}
