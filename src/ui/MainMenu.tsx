@@ -1,16 +1,19 @@
 import { useState } from 'react';
+import { sound } from '../app/audio';
 
 export default function MainMenu() {
-  const [isMuted, setIsMuted] = useState(false);
+  const [muted, setMuted] = useState(sound.isMuted);
 
-  const playClickSound = () => {
-    if (isMuted) return;
-    const sound = new Audio('/click.mp3');
-    sound.play().catch(() => {});
+  const toggleSound = () => {
+    sound.isMuted = !sound.isMuted;
+    setMuted(sound.isMuted);
+    if (!sound.isMuted) {
+      sound.playClick();
+    }
   };
 
   const handleAction = () => {
-    playClickSound();
+    sound.playClick();
   };
 
   return (
@@ -21,6 +24,7 @@ export default function MainMenu() {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: '#050203',
       background: 'radial-gradient(circle at center, #1c080b 0%, #000000 100%)',
       overflow: 'hidden'
@@ -93,13 +97,7 @@ export default function MainMenu() {
         zIndex: 10
       }}>
         <button
-          onClick={() => {
-            setIsMuted(!isMuted);
-            if (isMuted) {
-              const sound = new Audio('/click.mp3');
-              sound.play().catch(() => {});
-            }
-          }}
+          onClick={toggleSound}
           style={{
             background: '#1a080a',
             border: '1px solid rgba(239, 68, 68, 0.35)',
@@ -112,42 +110,48 @@ export default function MainMenu() {
             cursor: 'pointer'
           }}
         >
-          {isMuted ? 'MUTE' : 'SOUND'}
+          {muted ? 'MUTE' : 'SOUND'}
         </button>
       </div>
 
       <div style={{
-        marginTop: '7vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 5,
-        animation: 'logoMenuGlow 3.5s infinite ease-in-out'
-      }}>
-        <img
-          src="/logo.png"
-          alt="Iron Man Unleashed"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-          style={{
-            maxWidth: '58vw',
-            maxHeight: '34vh',
-            objectFit: 'contain'
-          }}
-        />
-      </div>
-
-      <div style={{
-        marginTop: '6vh',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: 'translateY(2.5vh)',
         zIndex: 5
       }}>
-        <button className="menu-btn" onClick={handleAction}>НАЧАТЬ</button>
-        <button className="menu-btn" onClick={handleAction}>ХРАНИЛИЩЕ</button>
-        <button className="menu-btn" onClick={handleAction}>ЛИДЕРЫ</button>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '28px',
+          animation: 'logoMenuGlow 3.5s infinite ease-in-out'
+        }}>
+          <img
+            src="/logo.png"
+            alt="Iron Man Unleashed"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+            style={{
+              maxWidth: '58vw',
+              maxHeight: '34vh',
+              objectFit: 'contain'
+            }}
+          />
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <button className="menu-btn" onClick={handleAction}>НАЧАТЬ</button>
+          <button className="menu-btn" onClick={handleAction}>ХРАНИЛИЩЕ</button>
+          <button className="menu-btn" onClick={handleAction}>ЛИДЕРЫ</button>
+        </div>
       </div>
 
       <div style={{
